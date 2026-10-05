@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { analyzeMessages, truncate, type MessageInfo, type PartData } from "../classifier";
+import {
+  analyzeMessages,
+  isHiddenIdleChild,
+  truncate,
+  type CardState,
+  type MessageInfo,
+  type PartData,
+} from "../classifier";
 import type { DbMessageRow, DbPartRow } from "../storage/queries";
 
 function msgRow(id: string, timeCreated: number): DbMessageRow {
@@ -54,6 +61,39 @@ describe("truncate", () => {
   test("collapses whitespace and appends ellipsis", () => {
     expect(truncate("a  b   c", 10)).toBe("a b c");
     expect(truncate("abcdef", 4)).toBe("abc…");
+  });
+});
+
+describe("isHiddenIdleChild", () => {
+  function child(
+    overrides: Partial<Pick<CardState, "parentId" | "column" | "stage">> = {},
+  ): Pick<CardState, "parentId" | "column" | "stage"> {
+    return { parentId: "ses_parent", column: "idle", stage: "Finished", ...overrides };
+  }
+
+  test("completed subagent in idle is hidden (parent on board)", () => {
+    expect(isHiddenIdleChild(child(), { column: "running" })).toBe(true);
+    expect(isHiddenIdleChild(child(), { column: "idle" })).toBe(true);
+  });
+
+  test("interrupted and inactive subagents in idle are hidden", () => {
+    expect(isHiddenIdleChild(child({ stage: "Interrupted" }), { column: "running" })).toBe(true);
+    expect(isHiddenIdleChild(child({ stage: "Inactive" }), { column: "idle" })).toBe(true);
+  });
+
+  test("error subagent stays visible", () => {
+    expect(isHiddenIdleChild(child({ stage: "Error" }), { column: "running" })).toBe(false);
+    expect(isHiddenIdleChild(child({ stage: "Error" }), { column: "idle" })).toBe(false);
+  });
+
+  test("running and attention children stay visible", () => {
+    expect(isHiddenIdleChild(child({ column: "running" }), { column: "running" })).toBe(false);
+    expect(isHiddenIdleChild(child({ column: "attention" }), { column: "running" })).toBe(false);
+  });
+
+  test("root cards and orphans stay visible", () => {
+    expect(isHiddenIdleChild(child({ parentId: null }), { column: "idle" })).toBe(false);
+    expect(isHiddenIdleChild(child(), undefined)).toBe(false);
   });
 });
 

@@ -1,5 +1,6 @@
 import { memo } from "react";
 import {
+  Bot,
   CircleAlert,
   Folder,
   GitBranch,
@@ -157,9 +158,21 @@ export const SessionCard = memo(function SessionCard({ card, depth, selectedId, 
             </span>
           )}
           {card.subagent_count > 0 && (
-            <span className="flex items-center gap-0.5 shrink-0" title="Subagents">
-              <GitBranch className="w-3 h-3" />
-              {card.subagent_count}
+            <span
+              className={`flex items-center gap-0.5 shrink-0 ${
+                card.subagent_active > 0 ? "text-accent" : ""
+              }`}
+              title={
+                card.subagent_active > 0
+                  ? `Subagents: ${card.subagent_active} working of ${card.subagent_count}`
+                  : `Subagents: ${card.subagent_count} finished`
+              }
+              data-testid="card-subagents"
+            >
+              <Bot className="w-3 h-3" />
+              {card.subagent_active > 0
+                ? `${card.subagent_active}/${card.subagent_count}`
+                : card.subagent_count}
             </span>
           )}
           <span className="flex items-center gap-0.5 min-w-0 truncate" title={card.directory}>

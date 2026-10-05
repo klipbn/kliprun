@@ -103,6 +103,8 @@ export default function App() {
         }
         projectCount={board?.project_count ?? 0}
         running={counts.running}
+        agentsRunning={counts.agents_running}
+        subagentsRunning={counts.subagents_running}
         unread={counts.unread}
         agents={board?.agents ?? []}
       />

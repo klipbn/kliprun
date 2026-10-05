@@ -50,6 +50,7 @@ export interface CardPayload {
   branch: string | null;
   mrs: MrLink[];
   subagent_count: number;
+  subagent_active: number;
   children: CardPayload[];
 }
 

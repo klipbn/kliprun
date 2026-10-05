@@ -97,6 +97,20 @@ function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * Completed subagent cards must not clutter the IDLE column: a child card
+ * (parentId set, parent on board) in the idle column is hidden from the board
+ * unless it failed. Error children stay visible as the failure signal.
+ */
+export function isHiddenIdleChild(
+  child: Pick<CardState, "parentId" | "column" | "stage">,
+  parent: Pick<CardState, "column"> | undefined,
+): boolean {
+  if (child.parentId === null || !parent) return false;
+  if (child.column !== "idle") return false;
+  return child.stage !== "Error";
+}
+
 /** Extract everything the classifier needs from a session's messages. */
 export function analyzeMessages(
   messages: { row: DbMessageRow; data: MessageData }[],
@@ -537,13 +551,18 @@ export class Engine {
     for (const card of [...this.cards.values()].sort((a, b) => a.sessionId.localeCompare(b.sessionId))) {
       const parent = card.parentId !== null ? this.cards.get(card.parentId) : undefined;
       // Nest subagent cards under the parent only while they share a column;
-      // a finished child must stay visible in its own (idle) column.
-      if (parent && parent.column === card.column) parent.children.push(card.sessionId);
+      // completed (idle) subagents are hidden from the board entirely.
+      if (parent && parent.column === card.column && !isHiddenIdleChild(card, parent)) {
+        parent.children.push(card.sessionId);
+      }
     }
   }
 
   private cardPayload(card: CardState): CardPayload {
-    const subagentCount = [...this.cards.values()].filter((c) => c.parentId === card.sessionId).length;
+    const subagents = [...this.cards.values()].filter((c) => c.parentId === card.sessionId);
+    const subagentActive = subagents.filter(
+      (c) => c.column === "running" || c.column === "attention",
+    ).length;
     return {
       session_id: card.sessionId,
       directory: card.directory,
@@ -567,7 +586,8 @@ export class Engine {
       context: contextUsage(card.modelRef, card.tokensTotal),
       branch: branchOf(card.directory),
       mrs: sessionMrLinks(card.sessionId),
-      subagent_count: subagentCount,
+      subagent_count: subagents.length,
+      subagent_active: subagentActive,
       children: card.children
         .map((id) => this.cards.get(id))
         .filter((child): child is CardState => child !== undefined)
@@ -581,6 +601,7 @@ export class Engine {
     const workingAgents = new Set<string>();
     const restingAgents = new Set<string>();
     for (const card of this.cards.values()) {
+      if (card.parentId !== null && isHiddenIdleChild(card, this.cards.get(card.parentId))) continue;
       if (!card.agentName) continue;
       if (card.column === "running" || card.column === "attention") workingAgents.add(card.agentName);
       else if (card.column === "idle") restingAgents.add(card.agentName);
@@ -605,11 +626,14 @@ export class Engine {
       const top = byColumn[key].filter((card) => {
         if (card.parentId === null) return true;
         const parent = this.cards.get(card.parentId);
+        // Completed subagents stay off the board; children in another column
+        // than their parent surface as top-level cards.
+        if (isHiddenIdleChild(card, parent)) return false;
         return !parent || parent.column !== card.column;
       });
       columns[key] = {
         title: COLUMN_TITLES[key],
-        count: byColumn[key].length,
+        count: top.reduce((sum, card) => sum + this.visibleTreeCount(card), 0),
         cards: top.map((card) => this.cardPayload(card)),
       };
     }
@@ -625,6 +649,16 @@ export class Engine {
     this.cachedBoard = payload;
     this.cachedBoardAt = now;
     return payload;
+  }
+
+  /** Number of displayed cards in a subtree (children nest in the same column). */
+  private visibleTreeCount(card: CardState): number {
+    let count = 1;
+    for (const childId of card.children) {
+      const child = this.cards.get(childId);
+      if (child) count += this.visibleTreeCount(child);
+    }
+    return count;
   }
 
   /** Stable signature of the visible board state (for ETag). */

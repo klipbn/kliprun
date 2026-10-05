@@ -14,6 +14,7 @@ export interface TrackedCard {
   column: string;
   stage_since?: number;
   finished_at?: number | null;
+  parent_id?: string | null;
   children?: TrackedCard[];
 }
 
@@ -78,12 +79,20 @@ export function sessionCards(cards: TrackedCard[] | undefined | null): TrackedCa
 export interface ActivityCounts {
   running: number;
   unread: number;
+  /** Running root sessions (main agents). */
+  agents_running: number;
+  /** Running child sessions (subagents). */
+  subagents_running: number;
 }
 
 export function boardActivityCounts(cards: TrackedCard[], tracker: ReadTracker): ActivityCounts {
-  const counts: ActivityCounts = { running: 0, unread: 0 };
+  const counts: ActivityCounts = { running: 0, unread: 0, agents_running: 0, subagents_running: 0 };
   for (const card of cards) {
-    if (card.column === "running") counts.running += 1;
+    if (card.column === "running") {
+      counts.running += 1;
+      if (card.parent_id) counts.subagents_running += 1;
+      else counts.agents_running += 1;
+    }
     if (card.column === "idle" && !tracker.isRead(card)) counts.unread += 1;
   }
   return counts;

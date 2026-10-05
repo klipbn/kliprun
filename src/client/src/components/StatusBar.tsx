@@ -5,6 +5,8 @@ interface Props {
   sessionCount: number;
   projectCount: number;
   running: number;
+  agentsRunning: number;
+  subagentsRunning: number;
   unread: number;
   agents: AgentSummary[];
 }
@@ -14,7 +16,7 @@ function plural(count: number, word: string): string {
 }
 
 /** Bottom application status bar. */
-export function StatusBar({ sessionCount, projectCount, running, unread, agents }: Props) {
+export function StatusBar({ sessionCount, projectCount, running, agentsRunning, subagentsRunning, unread, agents }: Props) {
   return (
     <footer
       className="shrink-0 flex items-center gap-3 px-4 py-1.5 border-t border-border bg-surface text-xs"
@@ -34,12 +36,17 @@ export function StatusBar({ sessionCount, projectCount, running, unread, agents 
       <div className="flex-1 flex items-center justify-center gap-3 min-w-0 overflow-hidden">
         <span
           className="flex items-center gap-1.5 text-text-primary"
-          title="Running"
+          title="Running agents and subagents"
           aria-label={`Running: ${running}`}
           data-testid="running-count"
         >
           <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />
-          {running}
+          {plural(agentsRunning, "agent")}
+          {subagentsRunning > 0 && (
+            <span className="text-text-secondary" data-testid="subagent-count">
+              · {plural(subagentsRunning, "subagent")}
+            </span>
+          )}
         </span>
         <span
           className={`flex items-center gap-1.5 ${unread > 0 ? "text-warning" : "text-text-secondary"}`}

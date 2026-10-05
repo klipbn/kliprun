@@ -100,6 +100,20 @@ describe("boardActivityCounts", () => {
       ],
       tracker,
     );
-    expect(counts).toEqual({ running: 2, unread: 1 });
+    expect(counts).toEqual({ running: 2, unread: 1, agents_running: 2, subagents_running: 0 });
+  });
+
+  test("splits running into main agents and subagents", () => {
+    const tracker = createReadTracker(memoryStorage());
+    const counts = boardActivityCounts(
+      [
+        card("ses_root", "running"),
+        card("ses_sub1", "running", { parent_id: "ses_root" }),
+        card("ses_sub2", "running", { parent_id: "ses_root" }),
+        card("ses_sub_done", "idle", { parent_id: "ses_root" }),
+      ],
+      tracker,
+    );
+    expect(counts).toEqual({ running: 3, unread: 1, agents_running: 1, subagents_running: 2 });
   });
 });

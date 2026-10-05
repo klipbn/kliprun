@@ -61,8 +61,10 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
   `/api/session/:id`, `/api/stream` (SSE, heartbeat 30 s).
 - `src/client/` — React + Vite + Tailwind SPA, dark theme
   (`#0d1117`/`#58a6ff`); kanban cards carry status icons (spinner /
-  attention "!" / read-unread envelopes), git-branch chip, MR chips and a
-  context-window progress bar (accent → warning ≥70% → error ≥90%).
+  attention "!" / read-unread envelopes), a git-branch chip, a subagent chip
+  (`active/total`, Bot icon), MR chips and a context-window progress bar
+  (accent → warning ≥70% → error ≥90%). The status bar splits running cards
+  into agents and subagents.
 
 ## Key contracts
 
@@ -80,7 +82,10 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
 - **Running**: fresh user turn < 4 s or streaming < 15 min.
 - Columns: `attention` (sorted by stage_since), `running` (by last_event_at),
   `idle` (by finished_at/stage_since). Cards nest children only while sharing
-  the parent's column.
+  the parent's column; completed (IDLE) subagent cards are hidden from the
+  board entirely (`isHiddenIdleChild` — only a subagent with stage `Error`
+  stays visible). Column counts reflect displayed cards; parent cards carry
+  `subagent_active`/`subagent_count` (working of total subagents).
 - Watch at most 20 directories (most recently updated first).
 
 ## Configuration

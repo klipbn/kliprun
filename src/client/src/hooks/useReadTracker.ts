@@ -4,6 +4,7 @@ import {
   boardActivityCounts,
   createReadTracker,
   sessionCards,
+  type ActivityCounts,
   type ReadTracker,
   type TrackedCard,
 } from "@shared/readTracker";
@@ -16,7 +17,7 @@ function flattenBoard(board: BoardPayload): TrackedCard[] {
 
 export interface ReadTrackerApi {
   isRead: (card: TrackedCard) => boolean;
-  counts: { running: number; unread: number };
+  counts: ActivityCounts;
   markRead: (card: TrackedCard) => void;
 }
 
