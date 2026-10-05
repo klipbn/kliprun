@@ -1,6 +1,6 @@
 {
   "name": "kliprun",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A local, read-only Kanban board for observing OpenCode sessions",
   "type": "module",
   "module": "src/server/index.ts",

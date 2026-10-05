@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import type { ColumnKey, DetailMessage, SessionDetailPayload } from "@shared/types";
+import { COLUMNS } from "@shared/types";
 import { formatDuration, formatRelativeTimeVerbose, formatTokens } from "@shared/format";
 
 const AGENT_MESSAGE_LIMIT = 42;
@@ -101,12 +102,32 @@ function MessageView({ message }: { message: DetailMessage }) {
 }
 
 function KanbanHistory({ detail }: { detail: SessionDetailPayload }) {
+  const totals = useMemo<Partial<Record<ColumnKey, number>>>(() => {
+    const acc: Partial<Record<ColumnKey, number>> = {};
+    for (const interval of detail.kanban_history) {
+      acc[interval.column as ColumnKey] = (acc[interval.column as ColumnKey] ?? 0) + interval.duration_ms;
+    }
+    return acc;
+  }, [detail.kanban_history]);
+  const totalsShown = COLUMNS.filter((column) => (totals[column] ?? 0) > 0);
   const intervals = [...detail.kanban_history].reverse();
   if (intervals.length === 0) {
     return <p className="text-sm text-text-secondary p-4">No recorded transitions yet.</p>;
   }
   return (
     <div className="space-y-1.5">
+      {totalsShown.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 pb-1" data-testid="kanban-status-totals">
+          {totalsShown.map((column) => (
+            <div key={column} className="rounded-md border border-border bg-surface p-2 space-y-1 text-xs">
+              <span className={`inline-block px-2 py-0.5 rounded-full ${COLUMN_BADGE[column] ?? "bg-surface"}`}>
+                {column}
+              </span>
+              <div className="text-text-primary font-medium">{formatDuration(totals[column] ?? 0)}</div>
+            </div>
+          ))}
+        </div>
+      )}
       {intervals.map((interval, index) => (
         <div
           key={index}
