@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`KLIPRUN_BUN_MODEL_LIMITS`, defaults to `~/.kliprun_bun/model-limits.json`).
   Exact `"provider/model"` keys replace catalog values; `"provider/*"`
   wildcards fill only models the models.dev catalog does not know, so custom
-  proxies (e.g. `acme-proxy`) finally get a context bar. Hot-reloaded by
+  proxies finally get a context bar. Hot-reloaded by
   file mtime — no server restart needed for edits.
 
 ## [0.2.0] - 2026-10-05

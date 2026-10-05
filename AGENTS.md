@@ -98,7 +98,7 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
 - `KLIPRUN_BUN_MODEL_LIMITS` — optional JSON with context-limit overrides
   (defaults to `$KLIPRUN_BUN_HOME/model-limits.json`). Exact `"provider/model"`
   keys replace catalog values; `"provider/*"` fills only models the catalog
-  does not know (e.g. custom proxies like `acme-proxy`). Hot-reloaded by mtime.
+  does not know (custom proxies). Hot-reloaded by mtime.
 
 ## Commands
 
