@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-05
+
+### Added
+- Details panel, Kanban tab: a totals row above the transition list showing
+  the cumulative time the card spent in each column. Only statuses with
+  time greater than zero are shown; the running interval is included live
+  (panel refreshes every 3 s).
+
 ## [0.3.0] - 2026-10-05
 
 ### Added
