@@ -29,8 +29,7 @@ function StatusIcon({ card, read }: { card: CardPayload; read: boolean }) {
   return <Mail className="w-4 h-4 text-warning shrink-0" data-testid="card-icon-unread" aria-label="Idle" />;
 }
 
-function borderClass(card: CardPayload, selected: boolean): string {
-  if (selected) return "border-l-accent";
+function borderClass(card: CardPayload): string {
   switch (card.column) {
     case "attention":
       return "border-l-warning animate-attention";
@@ -90,8 +89,8 @@ export const SessionCard = memo(function SessionCard({ card, depth, selectedId, 
           onSelect(card.session_id);
         }
       }}
-      className={`w-full text-left rounded-md border border-border border-l-2 ${borderClass(card, selected)} ${
-        selected ? "bg-background" : "bg-surface hover:bg-background"
+      className={`w-full text-left rounded-md border border-border border-l-2 ${borderClass(card)} ${
+        selected ? "bg-background ring-1 ring-accent ring-inset" : "bg-surface hover:bg-background"
       } transition-colors p-2.5 flex flex-col gap-1 animate-fade-in cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-accent ${
         depth > 0 ? "ml-3 border-dashed" : ""
       }`}

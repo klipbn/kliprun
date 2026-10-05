@@ -39,7 +39,7 @@ export default function App() {
   const select = useCallback(
     (id: string) => {
       setSelectedId((prev) => {
-        if (prev === id) return null;
+        if (prev === id) return prev;
         // Opening details marks an IDLE card as read.
         const card = board ? findCard(board, id) : null;
         if (card) markRead(card as TrackedCard);

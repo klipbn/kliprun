@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-10-06
+
+### Changed
+- Selected cards are now clearly highlighted: a full accent-colored outline
+  (inset ring) is drawn around the card. The status-colored left border
+  (warning/accent/success/error) is preserved, so attention cards keep their
+  pulse and running cards stay distinguishable while selected.
+- Clicking an already-selected card no longer closes the details panel.
+  Selection is sticky; the panel closes only via its close button.
+
 ## [0.4.0] - 2026-10-05
 
 ### Added
