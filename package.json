@@ -1,0 +1,22 @@
+{
+  "name": "kliprun",
+  "version": "0.1.0",
+  "description": "A local, read-only Kanban board for observing OpenCode sessions",
+  "type": "module",
+  "module": "src/server/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/server/index.ts",
+    "dev:client": "cd src/client && bun run dev",
+    "start": "bun run src/server/index.ts",
+    "test": "bun test src/server src/shared",
+    "typecheck": "tsc -b",
+    "build": "cd src/client && bun install && bun run build"
+  },
+  "dependencies": {
+    "hono": "^4.12.5"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "~5.9.3"
+  }
+}

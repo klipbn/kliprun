@@ -1,0 +1,70 @@
+/* Attention pulse for waiting cards */
+@keyframes attention-glow {
+  0%,
+  100% {
+    box-shadow: inset 2px 0 0 rgba(210, 153, 34, 0.6);
+  }
+  50% {
+    box-shadow: inset 3px 0 0 rgba(210, 153, 34, 1);
+  }
+}
+
+.animate-attention {
+  animation: attention-glow 2s ease-in-out infinite;
+}
+
+/* Waiting icon attention pulse - scale + opacity */
+@keyframes waiting-user-icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+.animate-waiting-user-icon {
+  animation: waiting-user-icon-pulse 1.5s ease-in-out infinite;
+}
+
+/* Subtle card entry */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 200ms ease-out forwards;
+}
+
+/* Session update pulse when a card's data changes */
+@keyframes session-update-pulse {
+  0% {
+    background-color: rgba(88, 166, 255, 0.08);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-session-update {
+  animation: session-update-pulse 400ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-attention,
+  .animate-waiting-user-icon,
+  .animate-fade-in,
+  .animate-session-update {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,52 @@
+import { Database } from "bun:sqlite";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+const SQLITE_BUSY_TIMEOUT_MS = 5000;
+const SQLITE_CACHE_SIZE = -20000;
+
+let dbSingleton: Database | null | undefined;
+
+export function getDbPath(): string {
+  const override = process.env.KLIPRUN_BUN_DB;
+  if (override) return override;
+  const xdgDataHome = process.env.XDG_DATA_HOME;
+  const storageRoot = xdgDataHome ?? join(homedir(), ".local", "share");
+  return join(storageRoot, "opencode", "opencode.db");
+}
+
+function configureConnectionPragmas(db: Database): void {
+  db.query(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS};`).run();
+  db.query(`PRAGMA cache_size = ${SQLITE_CACHE_SIZE};`).run();
+}
+
+export function checkDbExists(): boolean {
+  return existsSync(getDbPath());
+}
+
+/** Read-only singleton connection to the OpenCode database. Never writes. */
+export function getDb(): Database | null {
+  if (dbSingleton !== undefined) return dbSingleton;
+  if (!checkDbExists()) {
+    dbSingleton = null;
+    return dbSingleton;
+  }
+  try {
+    const db = new Database(getDbPath(), { readonly: true });
+    configureConnectionPragmas(db);
+    dbSingleton = db;
+    return dbSingleton;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(`[storage/db] Failed to open SQLite database: ${reason}`);
+    dbSingleton = null;
+    return dbSingleton;
+  }
+}
+
+export function closeDb(): void {
+  if (!dbSingleton) return;
+  dbSingleton.close();
+  dbSingleton = undefined;
+}
