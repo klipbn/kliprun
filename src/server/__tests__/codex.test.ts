@@ -4,7 +4,7 @@ import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CodexAdapter } from "../codex/adapter";
-import { parseCliProcesses, matchCliSessions, type CliProcess } from "../codex/liveness";
+import { parseCliProcesses, parseDaemonProcesses, parseCodexFiles, matchCliSessions, type CliProcess } from "../codex/liveness";
 import { RolloutReader } from "../codex/rollout";
 import { CodexStorage, type CodexThread } from "../codex/storage";
 
@@ -23,6 +23,28 @@ function thread(overrides: Partial<CodexThread> = {}): CodexThread {
 function cli(pid = "10"): CliProcess { return { pid, cwd: "/project", rollouts: [] }; }
 
 describe("Codex CLI membership", () => {
+  test("selects the single daemon-loaded CLI session instead of hiding a resumed window", () => {
+    const process = { ...cli(), daemonSessionIds: [id] };
+    const candidates = [thread({ id: "old", updated_at: t + 100 }), thread()];
+    expect(matchCliSessions([process], candidates).threads.map(row => row.id)).toEqual([id]);
+    expect(matchCliSessions([cli()], candidates).threads).toEqual([]);
+    expect(matchCliSessions([{ ...process, daemonSessionIds: ["old", id] }], candidates).threads).toEqual([]);
+    expect(matchCliSessions([process, { ...process, pid: "11" }], candidates).threads).toEqual([]);
+    expect(matchCliSessions([process], [thread({ source: "vscode", originator: "codex-desktop" }), candidates[0], thread({ id: "older" })]).threads).toEqual([]);
+  });
+  test("an exact CLI writer file takes precedence over shared-daemon candidates", () => {
+    const process = { ...cli(), writerSessionIds: [id], daemonSessionIds: ["other"] };
+    expect(matchCliSessions([process, cli("11")], [thread(), thread({ id: "other" })]).threads.map(row => row.id)).toEqual([id]);
+  });
+  test("uses only live Codex owners and the configured home's writer files", () => {
+    const ps = "10 ttys001 /opt/codex resume\n20 ?? /opt/codex app-server --listen unix:// --managed-daemon\n21 ?? /opt/codex app-server --listen stdio://\n22 ?? /opt/other app-server --managed-daemon\n";
+    expect(parseDaemonProcesses(ps)).toEqual(["20"]);
+    const files = `p10\nfcwd\nn/project\np20\nf31\nn/codex-home/thread-writer-locks/${id}.lock\nf32\nn/another-home/thread-writer-locks/01900000-0000-7000-8000-000000000002.lock\np22\nf1\nn/codex-home/thread-writer-locks/01900000-0000-7000-8000-000000000003.lock\n`;
+    const processes = parseCodexFiles(files, ["10"], ["20"], "/codex-home");
+    expect(processes).toHaveLength(1);
+    expect(processes[0]).toMatchObject({ pid: "10", daemonSessionIds: [id] });
+    expect(parseCodexFiles("p10\nfcwd\nn/project\n", ["10"], ["20"], "/codex-home")[0].daemonSessionIds).toEqual([]);
+  });
   test("recognizes daemon-backed TUI sessions without treating desktop sessions as CLI", () => {
     const tui = thread({ source: "vscode", originator: "codex-tui" });
     expect(matchCliSessions([cli()], [tui]).threads.map(row => row.id)).toEqual([id]);
@@ -125,6 +147,23 @@ function database(dir: string) {
 }
 
 describe("Codex storage and adapter", () => {
+  test("loads a writer-referenced session even when it is outside the two historical candidates", () => {
+    const dir = temp(); const { db } = database(dir);
+    db.exec("ALTER TABLE threads ADD COLUMN originator TEXT");
+    const rollout = join(dir, "session.jsonl");
+    writeFileSync(rollout, event("event_msg", { type: "task_started" }));
+    for (const key of ["old-a", "old-b", id]) {
+      db.query("INSERT INTO threads VALUES (?,?,?,?,?,?,?,?,?)").run(key, "/project", key, "vscode", rollout, t / 1000, 0, null, "codex-tui");
+    }
+    db.close();
+    const adapter = new CodexAdapter(dir);
+    adapter.setProcesses([{ ...cli(), daemonSessionIds: [id] }]);
+    expect(adapter.cards(t).map(card => card.session_id)).toEqual([`codex:${id}`]);
+    expect(adapter.diagnostics).toEqual([]);
+    adapter.setProcesses([cli()]);
+    expect(adapter.cards(t + 1)).toEqual([]);
+    adapter.close();
+  });
   test("shows a daemon-backed CLI session recorded as vscode with originator codex-tui", () => {
     const dir = temp(); const { db } = database(dir);
     db.exec("ALTER TABLE threads ADD COLUMN originator TEXT");

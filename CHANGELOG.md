@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-10-07
+
+### Fixed
+- Resumed Codex CLI sessions no longer disappear when older sessions share
+  their directory. Matching now also uses session-writer files held open by
+  the CLI or a live managed Codex daemon, including sessions beyond the
+  historical candidate limit. Stale files on disk do not count, and ambiguous
+  matches remain excluded.
+
 ## [0.6.0] - 2026-10-06
 
 ### Added

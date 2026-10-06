@@ -6,7 +6,7 @@
 
 **A local, read-only Kanban board for observing OpenCode and Codex CLI sessions.** KlipRun
 shows active sessions, requests that need your attention, and idle sessions
-whose OpenCode TUI is still open. It never sends commands to OpenCode or
+whose OpenCode or Codex CLI TUI is still open. It never sends commands to either agent or
 changes session state. Codex CLI cards share the same columns and carry a source badge.
 
 KlipRun reads the OpenCode database directly (read-only) and reacts to file
@@ -100,8 +100,13 @@ does not prevent OpenCode cards from loading.
 
 Only interactive `codex` processes attached to a terminal are eligible;
 app-server, `exec`, MCP servers and the desktop application are excluded.
-An open rollout file provides a direct match. Otherwise a directory must
-contain exactly one non-archived CLI session and one CLI terminal. CLI sessions
+An open rollout or session-writer file held by the CLI provides a direct match.
+For shared app-server clients, one CLI terminal in a directory can also match
+the single CLI session in that directory whose writer file is held open by a
+live managed Codex daemon. This keeps resumed sessions visible when older
+sessions remain in the database. Files merely left on disk do not count.
+Without either signal, the directory must contain exactly one non-archived
+CLI session and one CLI terminal. CLI sessions
 are identified by `source=cli`, or by `source=vscode` together with
 `originator=codex-tui` for TUI clients using the shared app-server.
 Ambiguous matches are omitted, with reasons available in
@@ -150,10 +155,10 @@ bun run build                    # build the client
 
 ## Safety and privacy
 
-KlipRun is a local observer, not an OpenCode controller. Its web server binds
-only to `127.0.0.1`; the OpenCode SQLite database is opened read-only and is
-never written. KlipRun does not create sessions, send prompts, answer
-questions, approve permissions, or edit OpenCode settings. Potential secrets
+KlipRun observes OpenCode and Codex CLI locally. Its web server binds
+only to `127.0.0.1`; both agents' SQLite databases are opened read-only, and
+their storage is never written. KlipRun does not create sessions, send prompts, answer
+questions, approve permissions, or edit either agent's settings. Potential secrets
 are filtered before session details are sent to the browser. The Kanban
 history database stores only observed column intervals.
 
