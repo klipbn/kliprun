@@ -23,6 +23,42 @@ function thread(overrides: Partial<CodexThread> = {}): CodexThread {
 function cli(pid = "10"): CliProcess { return { pid, cwd: "/project", rollouts: [] }; }
 
 describe("Codex CLI membership", () => {
+  test("keeps both daemon-backed windows in one directory without choosing historical sessions", () => {
+    const processes = [cli(), cli("11")].map(process => ({ ...process, daemonSessionIds: [id, "second"] }));
+    const candidates = [thread({ id: "old" }), thread({ source: "vscode", originator: "codex-tui" }),
+      thread({ id: "second", source: "vscode", originator: "codex-tui" })];
+    const match = matchCliSessions(processes, candidates);
+    expect(match.threads.map(row => row.id)).toEqual([id, "second"]);
+    expect(match.diagnostics).toEqual([]);
+    // Closing a window and unloading its thread leaves the other card visible.
+    expect(matchCliSessions([{ ...processes[0], daemonSessionIds: [id] }], candidates).threads.map(row => row.id)).toEqual([id]);
+  });
+  test("does not guess when daemon-loaded sessions and unmatched windows differ", () => {
+    const candidates = [thread(), thread({ id: "second" }), thread({ id: "third" })];
+    for (const loadedIds of [[id], [id, "second", "third"]]) {
+      const processes = [cli(), cli("11")].map(process => ({ ...process, daemonSessionIds: loadedIds }));
+      const match = matchCliSessions(processes, candidates);
+      expect(match.threads).toEqual([]);
+      expect(match.diagnostics).toHaveLength(2);
+    }
+    // Matching counts alone do not replace live descriptor evidence for each window.
+    expect(matchCliSessions([{ ...cli(), daemonSessionIds: [id, "second"] }, cli("11")], candidates).threads).toEqual([]);
+    expect(matchCliSessions([cli(), cli("11")], candidates.slice(0, 2)).threads).toEqual([]);
+  });
+  test("reserves exact CLI matches before resolving other windows regardless of process order", () => {
+    const exact = { ...cli(), writerSessionIds: [id], daemonSessionIds: [id, "second"] };
+    const shared = { ...cli("11"), daemonSessionIds: [id, "second"] };
+    const candidates = [thread(), thread({ id: "second" }), thread({ id: "old" })];
+    for (const processes of [[exact, shared], [shared, exact]]) {
+      const match = matchCliSessions(processes, candidates);
+      expect(match.threads.map(row => row.id)).toEqual([id, "second"]);
+      expect(match.diagnostics).toEqual([]);
+    }
+    // The directly matched session must not also account for another terminal.
+    const match = matchCliSessions([exact, { ...shared, daemonSessionIds: [id] }], candidates);
+    expect(match.threads.map(row => row.id)).toEqual([id]);
+    expect(match.diagnostics).toHaveLength(1);
+  });
   test("selects the single daemon-loaded CLI session instead of hiding a resumed window", () => {
     const process = { ...cli(), daemonSessionIds: [id] };
     const candidates = [thread({ id: "old", updated_at: t + 100 }), thread()];

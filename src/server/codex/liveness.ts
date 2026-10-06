@@ -104,23 +104,36 @@ export function parseCodexFiles(output: string, pids: string[], daemonPids: stri
 export function matchCliSessions(processes: CliProcess[], candidates: CodexThread[]) {
   const selected = new Map<string, CodexThread>();
   const diagnostics: string[] = [];
-  for (const process of processes) {
+  const matches = processes.map(process => {
     const rollouts = process.rollouts.map(canonicalPath);
-    const cwd = canonicalPath(process.cwd);
     const direct = candidates.filter(row =>
       (rollouts.includes(canonicalPath(row.rollout_path)) || process.writerSessionIds?.includes(row.id)) && !row.source.startsWith("{"),
     );
-    if (direct.length === 1) { selected.set(direct[0].id, direct[0]); continue; }
+    return { process, cwd: canonicalPath(process.cwd), direct };
+  });
+  // Reserve exact matches first so the same session cannot fill another window.
+  for (const { direct } of matches) if (direct.length === 1) selected.set(direct[0].id, direct[0]);
+  for (const cwd of new Set(matches.map(match => match.cwd))) {
+    const terminals = matches.filter(match => match.cwd === cwd);
+    const unmatched = terminals.filter(match => match.direct.length !== 1);
+    if (!unmatched.length) continue;
     const sameDirectory = candidates.filter(row =>
       (row.source === "cli" || (row.source === "vscode" && row.originator === "codex-tui")) && canonicalPath(row.cwd) === cwd,
     );
-    const terminalCount = processes.filter(p => canonicalPath(p.cwd) === cwd).length;
-    const loaded = sameDirectory.filter(row => process.daemonSessionIds?.includes(row.id));
-    if (!direct.length && terminalCount === 1 && loaded.length === 1) {
-      selected.set(loaded[0].id, loaded[0]);
-    } else if (!direct.length && terminalCount === 1 && sameDirectory.length === 1) {
+    const loaded = sameDirectory.filter(row => !selected.has(row.id) &&
+      unmatched.some(({ process }) => process.daemonSessionIds?.includes(row.id)));
+    // Match board membership as a set; do not invent individual PID-to-session links.
+    // Every remaining window must see the same live set, with one session per window.
+    if (loaded.length === unmatched.length && unmatched.every(({ process, direct }) =>
+      !direct.length && loaded.every(row => process.daemonSessionIds?.includes(row.id)))) {
+      for (const row of loaded) selected.set(row.id, row);
+    } else if (!unmatched[0].direct.length && terminals.length === 1 && sameDirectory.length === 1 && !selected.has(sameDirectory[0].id)) {
       selected.set(sameDirectory[0].id, sameDirectory[0]);
-    } else diagnostics.push(`CLI ${process.pid}: ${direct.length > 1 || sameDirectory.length > 1 || terminalCount > 1 ? "ambiguous session match" : "no matching CLI session"}`);
+    } else {
+      for (const { process, direct } of unmatched) {
+        diagnostics.push(`CLI ${process.pid}: ${direct.length > 1 || sameDirectory.length > 1 || terminals.length > 1 ? "ambiguous session match" : "no matching CLI session"}`);
+      }
+    }
   }
   return { threads: [...selected.values()], diagnostics };
 }

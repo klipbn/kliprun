@@ -10,10 +10,12 @@ manages OpenCode processes.
 Codex CLI is a separate read-only adapter (`src/server/codex/`): SQLite
 metadata plus bounded incremental rollout reads. Never write to Codex
 storage or call Codex APIs. Only terminal-attached CLI processes qualify;
-match their open rollouts or writer files. A shared-daemon client may match
-the single CLI session with an open writer file in its directory, provided
-there is exactly one terminal there. Only live Codex-managed-daemon file
-descriptors count, never writer files merely present on disk. Otherwise
+match their open rollouts or writer files first. For shared-daemon clients
+in the same directory, match the remaining loaded CLI sessions as a set only
+when their count equals the unmatched terminal count and every terminal has
+the same live-session evidence. Do not invent individual PID-to-session links.
+Only live Codex-managed-daemon file descriptors count, never writer files
+merely present on disk. Otherwise
 require one CLI session and one terminal per directory. Ambiguous matches
 are omitted with `/api/health` diagnostics.
 `source=vscode` alone never establishes CLI membership; paired with

@@ -101,10 +101,12 @@ does not prevent OpenCode cards from loading.
 Only interactive `codex` processes attached to a terminal are eligible;
 app-server, `exec`, MCP servers and the desktop application are excluded.
 An open rollout or session-writer file held by the CLI provides a direct match.
-For shared app-server clients, one CLI terminal in a directory can also match
-the single CLI session in that directory whose writer file is held open by a
-live managed Codex daemon. This keeps resumed sessions visible when older
-sessions remain in the database. Files merely left on disk do not count.
+For shared app-server clients, the remaining CLI terminals in a directory can
+match the set of CLI sessions whose writer files are held open by a live managed
+Codex daemon. The numbers of unmatched terminals and loaded sessions must agree,
+with the same live-session evidence for every terminal. This keeps multiple
+windows and resumed sessions visible when older sessions remain in the database.
+Files merely left on disk do not count.
 Without either signal, the directory must contain exactly one non-archived
 CLI session and one CLI terminal. CLI sessions
 are identified by `source=cli`, or by `source=vscode` together with

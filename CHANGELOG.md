@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-10-07
+
+### Fixed
+- Multiple Codex CLI windows in the same directory no longer hide each other
+  when their number matches the remaining sessions held by the shared daemon.
+  Exact session matches take priority; mismatched counts remain ambiguous.
+- Context usage percentages on cards are rounded to whole numbers.
+
 ## [0.6.1] - 2026-10-07
 
 ### Fixed
