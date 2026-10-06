@@ -183,7 +183,7 @@ function ModelsView({ detail }: { detail: SessionDetailPayload }) {
             <div>
               <div className="text-text-secondary">Cost</div>
               <div className="text-text-primary">
-                {model.cost < 0.01 && model.cost > 0 ? model.cost.toExponential(1) : model.cost.toFixed(4)}
+                {model.cost === null ? "—" : model.cost < 0.01 && model.cost > 0 ? model.cost.toExponential(1) : model.cost.toFixed(4)}
               </div>
             </div>
           </div>

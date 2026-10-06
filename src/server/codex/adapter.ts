@@ -54,11 +54,16 @@ export class CodexAdapter {
   detail(sessionId: string, now: number): SessionDetailPayload {
     const row = this.threads.get(sessionId.replace(/^codex:/, ""));
     let messages: SessionDetailPayload["messages"] = [];
+    let models: SessionDetailPayload["models"] = [];
     if (row) {
-      try { messages = this.readers.get(row.id)?.read(row.rollout_path, now).messages ?? []; } catch { /* journal removed */ }
+      try {
+        const state = this.readers.get(row.id)?.read(row.rollout_path, now);
+        messages = state?.messages ?? [];
+        models = state?.models ?? [];
+      } catch { /* journal removed */ }
     }
     return { source: "codex", session_id: sessionId, title: scrub(row?.title ?? ""), directory: scrub(row?.cwd ?? ""),
-      branch: row ? scrub(branchOf(row.cwd)) : null, mrs: [], messages, models: [], kanban_history: [], exists: !!row };
+      branch: row ? scrub(branchOf(row.cwd)) : null, mrs: [], messages, models, kanban_history: [], exists: !!row };
   }
 
   watchPaths(): string[] {

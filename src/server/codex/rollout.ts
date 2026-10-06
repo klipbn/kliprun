@@ -1,6 +1,6 @@
 import { closeSync, openSync, readSync, statSync } from "node:fs";
 import { STALE_STREAM_MS } from "@shared/constants";
-import type { ColumnKey, ContextUsage, DetailMessage, ToolEntry } from "@shared/types";
+import type { ColumnKey, ContextUsage, DetailMessage, ModelUsageSummary, ToolEntry } from "@shared/types";
 import { scrub } from "../security";
 
 const MAX_READ = 4 * 1024 * 1024;
@@ -11,6 +11,32 @@ type Json = Record<string, unknown>;
 function object(value: unknown): Json { return value && typeof value === "object" && !Array.isArray(value) ? value as Json : {}; }
 function number(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null; }
 function string(value: unknown): string | null { return typeof value === "string" ? value : null; }
+
+interface TokenSnapshot {
+  input: number;
+  output: number;
+  reasoning: number;
+  cache_read: number;
+  cache_write: number;
+  total: number;
+}
+
+const TOKEN_FIELDS = ["input", "output", "reasoning", "cache_read", "cache_write", "total"] as const;
+
+function tokenSnapshot(value: unknown): TokenSnapshot | null {
+  const usage = object(value);
+  const total = number(usage.total_tokens);
+  if (total === null) return null;
+  return { input: number(usage.input_tokens) ?? 0, output: number(usage.output_tokens) ?? 0,
+    reasoning: number(usage.reasoning_output_tokens) ?? 0, cache_read: number(usage.cached_input_tokens) ?? 0,
+    cache_write: number(usage.cache_write_input_tokens) ?? 0, total };
+}
+
+function tokenDifference(current: TokenSnapshot, previous: TokenSnapshot): TokenSnapshot {
+  return { input: current.input - previous.input, output: current.output - previous.output,
+    reasoning: current.reasoning - previous.reasoning, cache_read: current.cache_read - previous.cache_read,
+    cache_write: current.cache_write - previous.cache_write, total: current.total - previous.total };
+}
 
 export interface RolloutState {
   column: ColumnKey;
@@ -23,6 +49,7 @@ export interface RolloutState {
   tokens: number | null;
   context: ContextUsage | null;
   messages: DetailMessage[];
+  models: ModelUsageSummary[];
   lastTool: string | null;
   prompt: string | null;
   reason: string | null;
@@ -41,10 +68,13 @@ export class RolloutReader {
   private state = this.empty();
   private limit: number | null = null;
   private used: number | null = null;
+  private previousUsage: TokenSnapshot | null = null;
+  private truncatedHistory = false;
+  private modelUsage = new Map<string, ModelUsageSummary>();
 
   private empty(): RolloutState {
     return { column: "idle", stage: "Status unknown", since: 0, startedAt: null, finishedAt: null,
-      lastEventAt: 0, model: null, tokens: null, context: null, messages: [], lastTool: null, prompt: null,
+      lastEventAt: 0, model: null, tokens: null, context: null, messages: [], models: [], lastTool: null, prompt: null,
       reason: "No confirmed turn status in the local journal" };
   }
 
@@ -57,7 +87,7 @@ export class RolloutReader {
     // Start from a bounded tail on first read or after a large backlog.
     if (stat.size - this.offset > MAX_READ) {
       this.reset(); this.identity = identity;
-      this.offset = stat.size - MAX_READ; this.skipping = true;
+      this.offset = stat.size - MAX_READ; this.skipping = true; this.truncatedHistory = true;
     }
     const length = Math.min(MAX_READ, stat.size - this.offset);
     if (length > 0) {
@@ -80,6 +110,29 @@ export class RolloutReader {
     this.offset = 0; this.partial = Buffer.alloc(0); this.skipping = false;
     this.turn = null; this.active = false; this.pending.clear(); this.state = this.empty();
     this.limit = null; this.used = null;
+    this.previousUsage = null; this.truncatedHistory = false; this.modelUsage.clear();
+  }
+
+  private recordUsage(info: Json): void {
+    const current = tokenSnapshot(info.total_token_usage);
+    if (!current) return;
+    const previous = this.previousUsage;
+    this.previousUsage = current;
+    const reset = previous && TOKEN_FIELDS.some(field => current[field] < previous[field]);
+    const usage = previous && !reset
+      ? tokenDifference(current, previous)
+      : this.truncatedHistory || reset ? tokenSnapshot(info.last_token_usage) : current;
+    if (!usage || usage.total <= 0 || !this.state.model) return;
+    const model = scrub(this.state.model);
+    let summary = this.modelUsage.get(model);
+    if (!summary) {
+      summary = { model, turns: 0, cost: null,
+        tokens: { input: 0, output: 0, reasoning: 0, cache_read: 0, cache_write: 0, total: 0 } };
+      this.modelUsage.set(model, summary);
+      this.state.models.push(summary);
+    }
+    summary.turns += 1;
+    for (const field of TOKEN_FIELDS) summary.tokens[field] += usage[field];
   }
 
   private consume(chunk: Buffer): void {
@@ -141,6 +194,7 @@ export class RolloutReader {
         this.limit = number(info.model_context_window) ?? this.limit;
         this.used = number(object(info.last_token_usage).total_tokens) ?? this.used;
         this.state.tokens = number(object(info.total_token_usage).total_tokens) ?? this.state.tokens;
+        this.recordUsage(info);
       }
     }
     if (entry.type === "response_item") {

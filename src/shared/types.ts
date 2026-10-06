@@ -97,7 +97,7 @@ export interface DetailMessage {
 export interface ModelUsageSummary {
   model: string;
   turns: number;
-  cost: number;
+  cost: number | null;
   tokens: {
     input: number;
     output: number;

@@ -125,9 +125,12 @@ local session will therefore not appear.
   no successful-completion marker. Confirmed unanswered questions remain in
   Needs attention.
 - Models, token counts and context limits come only from recorded data.
+  The Models tab groups recorded Codex token usage by model; Codex's input
+  includes cached tokens and its output includes reasoning tokens. The journal
+  does not record cost, so the tab shows it as unavailable.
   Details contain at most 100 recent messages/tool entries; system prompts,
-  reasoning and raw tool inputs/outputs are omitted. Model cost summaries,
-  Codex subagent trees and MR extraction are not included in this version.
+  reasoning and raw tool inputs/outputs are omitted. Codex subagent trees and
+  MR extraction are not included in this version.
 - Journal reads are bounded to the latest 4 MiB initially, then incremental;
   individual JSON records over 1 MiB are skipped. Unknown history is not
   reconstructed. File watching uses the existing SSE updates, with polling

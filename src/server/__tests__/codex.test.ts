@@ -124,6 +124,40 @@ describe("Codex rollout state", () => {
     appendFileSync(path, event("turn_context", { model: "second" }, t + 1));
     expect(reader.read(path, t + 1).context).toBeNull();
   });
+  test("summarizes recorded usage by model without counting repeated cumulative snapshots", () => {
+    const path = join(temp(), "session.jsonl");
+    const first = { input_tokens: 100, cached_input_tokens: 40, cache_write_input_tokens: 3,
+      output_tokens: 20, reasoning_output_tokens: 5, total_tokens: 120 };
+    const second = { input_tokens: 130, cached_input_tokens: 50, cache_write_input_tokens: 4,
+      output_tokens: 27, reasoning_output_tokens: 7, total_tokens: 157 };
+    writeFileSync(path, event("turn_context", { model: "first" }) +
+      event("event_msg", { type: "token_count", info: { total_token_usage: first, last_token_usage: first } }, t + 1) +
+      event("event_msg", { type: "token_count", info: { total_token_usage: first, last_token_usage: first } }, t + 2) +
+      event("turn_context", { model: "second" }, t + 3) +
+      event("event_msg", { type: "token_count", info: { total_token_usage: second,
+        last_token_usage: { input_tokens: 30, cached_input_tokens: 10, cache_write_input_tokens: 1,
+          output_tokens: 7, reasoning_output_tokens: 2, total_tokens: 37 } } }, t + 4));
+    const state = new RolloutReader().read(path, t + 4);
+    expect(state.models).toEqual([
+      { model: "first", turns: 1, cost: null, tokens: { input: 100, output: 20, reasoning: 5,
+        cache_read: 40, cache_write: 3, total: 120 } },
+      { model: "second", turns: 1, cost: null, tokens: { input: 30, output: 7, reasoning: 2,
+        cache_read: 10, cache_write: 1, total: 37 } },
+    ]);
+  });
+  test("uses only the last recorded usage when the initial journal read starts in a bounded tail", () => {
+    const path = join(temp(), "session.jsonl");
+    writeFileSync(path, event("event_msg", { type: "ignored", text: "x".repeat(4 * 1024 * 1024) }) +
+      event("turn_context", { model: "tail-model" }) +
+      event("event_msg", { type: "token_count", info: {
+        total_token_usage: { input_tokens: 9000, output_tokens: 1000, total_tokens: 10000 },
+        last_token_usage: { input_tokens: 90, output_tokens: 10, total_tokens: 100 },
+      } }));
+    expect(new RolloutReader().read(path, t).models).toEqual([
+      { model: "tail-model", turns: 1, cost: null, tokens: { input: 90, output: 10, reasoning: 0,
+        cache_read: 0, cache_write: 0, total: 100 } },
+    ]);
+  });
   test("confirmed unanswered questions remain attention even after a long wait", () => {
     const path = join(temp(), "session.jsonl");
     writeFileSync(path, event("event_msg", { type: "task_started" }) + event("response_item", { type: "function_call", name: "request_user_input", call_id: "q" }));
@@ -229,7 +263,11 @@ describe("Codex storage and adapter", () => {
     const dir = temp();
     const { db, path } = database(dir);
     const rollout = join(dir, `rollout-${id}.jsonl`);
-    writeFileSync(rollout, event("event_msg", { type: "task_started" }));
+    writeFileSync(rollout, event("event_msg", { type: "task_started" }) +
+      event("turn_context", { model: "gpt-test" }) +
+      event("event_msg", { type: "token_count", info: { total_token_usage: {
+        input_tokens: 12, output_tokens: 3, total_tokens: 15,
+      } } }));
     db.query("INSERT INTO threads VALUES (?,?,?,?,?,?,?,?)").run(id, "/project", "token=secret", "cli", rollout, t / 1000, 0, "model");
     db.close();
     const before = readFileSync(path);
@@ -238,7 +276,9 @@ describe("Codex storage and adapter", () => {
     const cards = adapter.cards(t);
     expect(cards).toHaveLength(1);
     expect(cards[0]).toMatchObject({ source: "codex", session_id: `codex:${id}`, column: "running", title: "token=[redacted]" });
-    expect(adapter.detail(`codex:${id}`, t)).toMatchObject({ source: "codex", exists: true });
+    expect(adapter.detail(`codex:${id}`, t)).toMatchObject({ source: "codex", exists: true, models: [
+      { model: "gpt-test", turns: 1, cost: null, tokens: { input: 12, output: 3, total: 15 } },
+    ] });
     adapter.setProcesses([]);
     expect(adapter.cards(t + 1)).toHaveLength(0);
     adapter.close();

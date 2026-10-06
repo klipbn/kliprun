@@ -790,7 +790,7 @@ export class Engine {
             tokens: { input: 0, output: 0, reasoning: 0, cache_read: 0, cache_write: 0, total: 0 },
           } satisfies ModelUsageSummary);
         entry.turns += 1;
-        entry.cost += typeof message.cost === "number" ? message.cost : 0;
+        entry.cost = (entry.cost ?? 0) + (typeof message.cost === "number" ? message.cost : 0);
         entry.tokens.input += tokens.input ?? 0;
         entry.tokens.output += tokens.output ?? 0;
         entry.tokens.reasoning += tokens.reasoning ?? 0;
