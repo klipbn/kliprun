@@ -17,6 +17,8 @@ updates reach the browser in ~100 ms over Server-Sent Events.
 
 ![KlipRun dashboard](docs/screenshot.png)
 
+*Demo data: fictional OpenCode and Codex CLI sessions, projects and messages.*
+
 ## Features
 
 - Three columns: **Needs attention**, **Running**, and **IDLE**.
