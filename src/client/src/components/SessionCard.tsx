@@ -201,7 +201,7 @@ export const SessionCard = memo(function SessionCard({ card, depth, selectedId, 
             <span className="truncate">
               <span className="text-text-primary">{context.model}</span>
               <span className="mx-1">·</span>
-              {context.percent}% context
+              {Math.round(context.percent)}% context
             </span>
             <span className="shrink-0">
               {formatTokens(context.used)} / {formatTokens(context.limit)}
