@@ -1,4 +1,5 @@
 export type ColumnKey = "attention" | "running" | "idle";
+export type SessionSource = "opencode" | "codex";
 
 export const COLUMNS: readonly ColumnKey[] = ["attention", "running", "idle"] as const;
 
@@ -27,6 +28,7 @@ export interface MrLink {
 }
 
 export interface CardPayload {
+  source: SessionSource;
   session_id: string;
   directory: string;
   directory_name: string;
@@ -115,6 +117,7 @@ export interface KanbanInterval {
 }
 
 export interface SessionDetailPayload {
+  source: SessionSource;
   session_id: string;
   title: string;
   directory: string;

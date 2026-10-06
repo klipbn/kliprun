@@ -564,6 +564,7 @@ export class Engine {
       (c) => c.column === "running" || c.column === "attention",
     ).length;
     return {
+      source: "opencode",
       session_id: card.sessionId,
       directory: card.directory,
       directory_name: card.directory.replace(/\/+$/, "").split("/").pop() ?? card.directory,

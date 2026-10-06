@@ -2,6 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { StatusHistoryStore } from "../history";
 
 describe("StatusHistoryStore", () => {
+  test("closes an observed interval when a CLI terminal disappears", () => {
+    const store = new StatusHistoryStore(":memory:");
+    store.record([{ sessionId: "codex:test", directory: "/d", column: "running" }], 1000);
+    store.record([], 2000);
+    expect(store.get("codex:test", 9000)[0]).toMatchObject({ current: false, duration_ms: 1000 });
+    store.close();
+  });
   test("opens intervals per column and closes on transition", () => {
     const store = new StatusHistoryStore(":memory:");
     const t0 = 1000;

@@ -2,10 +2,22 @@
 
 ## Purpose
 
-KlipRun is a local, read-only Kanban board for observing OpenCode sessions
+KlipRun is a local, read-only Kanban board for observing OpenCode and Codex CLI sessions
 with a currently open TUI. It reads the OpenCode SQLite database directly
 (read-only) and reacts to file changes; it never calls OpenCode APIs and never
 manages OpenCode processes.
+
+Codex CLI is a separate read-only adapter (`src/server/codex/`): SQLite
+metadata plus bounded incremental rollout reads. Never write to Codex
+storage or call Codex APIs. Only terminal-attached CLI processes qualify;
+match their open rollouts, otherwise require one CLI session and one terminal
+per directory. Ambiguous matches are omitted with `/api/health` diagnostics.
+`source=vscode` alone never establishes CLI membership; paired with
+`originator=codex-tui` it identifies a TUI using the shared app-server.
+Cards/details carry
+`source`; Codex IDs use `codex:<uuid>`. Unknown Codex status belongs in IDLE
+with neutral styling, never an invented completion. Codex subagents and MR
+extraction are out of scope for this adapter's first version.
 
 ## Mandatory safety boundaries
 
@@ -92,6 +104,8 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
 
 - `KLIPRUN_BUN_PORT` (default 8792; `--port` flag wins).
 - `KLIPRUN_BUN_DB` — path to the OpenCode database.
+- `KLIPRUN_BUN_CODEX_HOME` — read-only Codex data directory, defaulting to
+  `$CODEX_HOME` or `~/.codex`.
 - `KLIPRUN_BUN_HOME` — defaults to `~/.kliprun_bun`.
 - `KLIPRUN_BUN_MODELS` — path to the model catalog
   (defaults to `~/.cache/opencode/models.json`).

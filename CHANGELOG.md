@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-10-06
+
+### Added
+- Codex CLI sessions on the same board as OpenCode, with source badges,
+  session details, observed status history and live updates.
+- Read-only Codex SQLite metadata and bounded incremental journal reads,
+  including TUI sessions recorded as `source=vscode` with
+  `originator=codex-tui` by the shared app-server.
+- Confirmed input questions move Codex cards to Needs attention. Unknown
+  states use neutral styling; permission dialogs cannot always be detected.
+- `KLIPRUN_BUN_CODEX_HOME` for a custom Codex data directory and matching
+  diagnostics in `/api/health`. Ambiguous sessions are omitted.
+
+### Fixed
+- Observed status intervals stop accumulating time when cards leave the board.
+- Quiet SSE connections stay open long enough to receive the 30-second heartbeat.
+
 ## [0.5.0] - 2026-10-06
 
 ### Changed

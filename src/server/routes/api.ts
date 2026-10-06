@@ -17,7 +17,7 @@ export function registerBoardRoute(app: Hono, service: BoardService) {
 export function registerSessionRoute(app: Hono, service: BoardService) {
   app.get("/api/session/:id", (c) => {
     const id = c.req.param("id");
-    if (!/^ses_[a-zA-Z0-9_-]+$/.test(id)) {
+    if (!/^ses_[a-zA-Z0-9_-]+$/.test(id) && !/^codex:[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id)) {
       return c.json({ error: "invalid session id" }, 400);
     }
     return c.json(service.getSessionDetail(id));
@@ -29,6 +29,7 @@ export function registerHealthRoute(app: Hono, service: BoardService) {
     return c.json({
       ok: true,
       tui_directories: service.tuiCount(),
+      codex_diagnostics: service.codexDiagnostics(),
       uptime_s: Math.floor((Date.now() - service.startedAt) / 1000),
     });
   });

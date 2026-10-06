@@ -2,6 +2,7 @@ import { memo } from "react";
 import {
   Bot,
   CircleAlert,
+  CircleHelp,
   Folder,
   GitBranch,
   GitMerge,
@@ -15,6 +16,9 @@ import type { TrackedCard } from "@shared/readTracker";
 import { formatDuration, formatRelativeTimeVerbose, formatTokens } from "@shared/format";
 
 function StatusIcon({ card, read }: { card: CardPayload; read: boolean }) {
+  if (card.source === "codex" && card.stage === "Status unknown") {
+    return <CircleHelp className="w-4 h-4 text-text-secondary shrink-0" aria-label="Status unknown" />;
+  }
   if (card.column === "attention") {
     return (
       <CircleAlert className="w-4 h-4 text-warning shrink-0" data-testid="card-icon-attention" aria-label="Needs attention" />
@@ -30,6 +34,7 @@ function StatusIcon({ card, read }: { card: CardPayload; read: boolean }) {
 }
 
 function borderClass(card: CardPayload): string {
+  if (card.source === "codex" && card.column === "idle" && !card.finished_at && !card.error) return "border-l-border";
   switch (card.column) {
     case "attention":
       return "border-l-warning animate-attention";
@@ -111,6 +116,9 @@ export const SessionCard = memo(function SessionCard({ card, depth, selectedId, 
       </div>
 
       <div className="flex items-center gap-2 pl-6 w-full min-w-0 text-xs">
+        <span className="px-1.5 py-0.5 rounded text-[10px] border border-border text-text-secondary shrink-0" data-testid="card-source">
+          {card.source === "codex" ? "Codex CLI" : "OpenCode"}
+        </span>
         <span
           className={`truncate flex-1 min-w-0 ${
             isAttention ? "text-warning font-medium" : "text-text-secondary"
@@ -120,7 +128,7 @@ export const SessionCard = memo(function SessionCard({ card, depth, selectedId, 
         >
           {actionLine}
         </span>
-        {card.agent && (
+        {card.agent && card.source !== "codex" && (
           <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface border border-border text-text-secondary shrink-0">
             {card.agent.name}
           </span>

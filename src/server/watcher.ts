@@ -2,15 +2,15 @@
  * fs.watch on the OpenCode DB (preferring -wal) and Hermes instances directory.
  * Emits "db" and "hermes" events (debounced); never reads or writes their contents.
  */
-import { existsSync, watch, type FSWatcher } from "node:fs";
+import { existsSync, statSync, watch, type FSWatcher } from "node:fs";
 import { basename } from "node:path";
 import { EventEmitter } from "node:events";
 import { getDbPath } from "./storage/db";
 import { hermesInstancesDir } from "./liveness";
 import { HERMES_DEBOUNCE_MS, WATCH_DEBOUNCE_MS } from "@shared/constants";
 
-interface CombinedEvent {
-  source: "db" | "hermes";
+export interface CombinedEvent {
+  source: "db" | "hermes" | "codex";
 }
 
 export class Watcher extends EventEmitter {
@@ -25,8 +25,10 @@ export class Watcher extends EventEmitter {
   private dbWatcherTarget: string | null = null;
   private hermesWatcherTarget: string | null = null;
   private running = false;
+  private codexWatchers = new Map<string, { watcher: FSWatcher; ino: number }>();
+  private codexDebounce: Timer | null = null;
 
-  constructor(dbPath?: string, hermesDir?: string) {
+  constructor(dbPath?: string, hermesDir?: string, private readonly codexPaths: () => string[] = () => []) {
     super();
     this.dbPath = dbPath ?? getDbPath();
     this.walPath = `${this.dbPath}-wal`;
@@ -38,9 +40,11 @@ export class Watcher extends EventEmitter {
     this.running = true;
     this.rebindDbWatcher();
     this.rebindHermesWatcher();
+    this.rebindCodexWatchers();
     this.rebindTimer = setInterval(() => {
       this.rebindDbWatcher();
       this.rebindHermesWatcher();
+      this.rebindCodexWatchers();
     }, 100);
     this.emit("started");
   }
@@ -49,6 +53,10 @@ export class Watcher extends EventEmitter {
     if (!this.running) return;
     if (this.dbDebounce) clearTimeout(this.dbDebounce);
     if (this.hermesDebounce) clearTimeout(this.hermesDebounce);
+    if (this.codexDebounce) clearTimeout(this.codexDebounce);
+    this.codexDebounce = null;
+    for (const { watcher } of this.codexWatchers.values()) watcher.close();
+    this.codexWatchers.clear();
     if (this.rebindTimer) clearInterval(this.rebindTimer);
     this.dbDebounce = null;
     this.hermesDebounce = null;
@@ -63,16 +71,36 @@ export class Watcher extends EventEmitter {
     this.emit("stopped");
   }
 
-  private emitDebounced(source: "db" | "hermes", delay: number): void {
-    const timer = source === "db" ? this.dbDebounce : this.hermesDebounce;
+  private emitDebounced(source: CombinedEvent["source"], delay: number): void {
+    const timer = source === "db" ? this.dbDebounce : source === "hermes" ? this.hermesDebounce : this.codexDebounce;
     if (timer) clearTimeout(timer);
     const handle = setTimeout(() => {
       this.emit("change", { source } satisfies CombinedEvent);
       if (source === "db") this.dbDebounce = null;
-      else this.hermesDebounce = null;
+      else if (source === "hermes") this.hermesDebounce = null;
+      else this.codexDebounce = null;
     }, delay);
     if (source === "db") this.dbDebounce = handle;
-    else this.hermesDebounce = handle;
+    else if (source === "hermes") this.hermesDebounce = handle;
+    else this.codexDebounce = handle;
+  }
+
+  private rebindCodexWatchers(): void {
+    const targets = new Set(this.codexPaths());
+    for (const [path, entry] of this.codexWatchers) {
+      let same = false;
+      try { same = targets.has(path) && statSync(path).ino === entry.ino; } catch { /* removed */ }
+      if (!same) { entry.watcher.close(); this.codexWatchers.delete(path); }
+    }
+    for (const path of targets) {
+      if (this.codexWatchers.has(path)) continue;
+      try {
+        const ino = statSync(path).ino;
+        const watcher = watch(path, () => this.emitDebounced("codex", WATCH_DEBOUNCE_MS));
+        watcher.on("error", () => { watcher.close(); this.codexWatchers.delete(path); });
+        this.codexWatchers.set(path, { watcher, ino });
+      } catch { /* polling discovers files that appear later */ }
+    }
   }
 
   private preferredDbTarget(): string | null {

@@ -253,6 +253,7 @@ export function DetailsPanel({ sessionId, onClose }: Props) {
         <h2 className="text-sm font-medium truncate flex-1" title={detail?.title ?? sessionId}>
           {detail?.title ?? sessionId}
         </h2>
+        {detail && <span className="text-[10px] text-text-secondary shrink-0">{detail.source === "codex" ? "Codex CLI" : "OpenCode"}</span>}
         <button
           type="button"
           onClick={onClose}

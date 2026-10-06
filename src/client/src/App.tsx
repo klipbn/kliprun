@@ -72,7 +72,7 @@ export default function App() {
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-secondary" data-testid="loading-screen">
             <Loader2Impl />
-            <p className="text-sm">Loading OpenCode sessions…</p>
+            <p className="text-sm">Loading sessions…</p>
             {error && <p className="text-xs text-error">{error}</p>}
           </div>
         ) : (

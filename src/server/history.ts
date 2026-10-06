@@ -79,7 +79,7 @@ export class StatusHistoryStore {
     const tx = this.db.transaction(() => {
       for (const [sessionId, row] of activeById) {
         const card = byId.get(sessionId);
-        if (card && (row.column_name !== card.column || row.directory !== card.directory)) {
+        if (!card || row.column_name !== card.column || row.directory !== card.directory) {
           this.closeInterval(row, observedAt);
         }
       }

@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { Watcher } from "../watcher";
+import type { Watcher, CombinedEvent } from "../watcher";
 import type { BoardService } from "../boardService";
 
 const activeAbortControllers = new Set<AbortController>();
@@ -33,7 +33,7 @@ export function registerStreamRoute(app: Hono, watcher: Watcher, service: BoardS
         }
       }, 30000);
 
-      const handleChange = async (event: { source: "db" | "hermes" }) => {
+      const handleChange = async (event: CombinedEvent) => {
         try {
           if (event.source === "hermes") {
             service.refreshLivenessNow();

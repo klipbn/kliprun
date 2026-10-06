@@ -7,7 +7,7 @@ import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { DEFAULT_PORT } from "@shared/constants";
 import { BoardService } from "./boardService";
-import { Watcher } from "./watcher";
+import { Watcher, type CombinedEvent } from "./watcher";
 import { registerBoardRoute, registerHealthRoute, registerSessionRoute } from "./routes/api";
 import { closeAllSSEConnections, registerStreamRoute } from "./routes/stream";
 import { checkDbExists, getDbPath } from "./storage/db";
@@ -32,7 +32,7 @@ const app = new Hono();
 app.use("*", cors({ origin: (origin) => origin ?? "*" }));
 
 const service = new BoardService();
-const watcher = new Watcher();
+const watcher = new Watcher(undefined, undefined, () => service.codex.watchPaths());
 
 registerHealthRoute(app, service);
 registerBoardRoute(app, service);
@@ -43,7 +43,7 @@ registerStreamRoute(app, watcher, service);
 app.use("*", serveStatic({ root: "./src/client/dist" }));
 app.use("*", serveStatic({ path: "./src/client/dist/index.html" }));
 
-watcher.on("change", (event: { source: "db" | "hermes" }) => {
+watcher.on("change", (event: CombinedEvent) => {
   if (event.source === "hermes") service.refreshLivenessNow();
   service.invalidate();
 });
@@ -54,6 +54,8 @@ service.start();
 const server = Bun.serve({
   hostname: "127.0.0.1",
   port,
+  // SSE heartbeat is every 30 s; Bun's 10 s default closes quiet streams.
+  idleTimeout: 60,
   fetch: app.fetch,
 });
 
