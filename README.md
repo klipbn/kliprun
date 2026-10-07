@@ -25,7 +25,7 @@ updates reach the browser in ~100 ms over Server-Sent Events.
 
 ![KlipRun usage statistics with fictional demo data](docs/statistics.png)
 
-*Demo data: fictional sessions, projects and usage. English-language preview.*
+*Demo data: fictional sessions, projects and usage.*
 
 ## Features
 
@@ -47,12 +47,12 @@ updates reach the browser in ~100 ms over Server-Sent Events.
   working agents, and the app version.
 - Live updates over Server-Sent Events with ETag polling fallback.
 - Monitoring of up to 20 directories with an OpenCode TUI currently open.
-- A **Статистика** button opens usage history: date and source/agent/model/project
+- A **Statistics** button opens usage history: date and source/agent/model/project
   filters, token breakdowns, observed Running time, activity heatmaps and task rankings.
 
 ## Usage statistics
 
-Open **Статистика** in the upper-right corner, or visit `/stats`. The default
+Open **Statistics** in the upper-right corner, or visit `/stats`. The default
 period is the last seven calendar days in the browser's timezone. Presets,
 custom dates, multiple selections and ranking order are preserved in the URL.
 Relative presets advance at midnight; custom dates stay fixed.

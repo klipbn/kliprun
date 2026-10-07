@@ -109,12 +109,12 @@ export default function App() {
           data-testid="statistics-button"
         >
           <BarChart3 className="w-3.5 h-3.5" />
-          Статистика
+          Statistics
         </button>
       </header>
 
       {showStatistics && (
-        <Suspense fallback={<div className="flex-1 flex items-center justify-center gap-3 text-text-secondary"><Loader2Impl /><span>Загрузка статистики…</span></div>}>
+        <Suspense fallback={<div className="flex-1 flex items-center justify-center gap-3 text-text-secondary"><Loader2Impl /><span>Loading statistics…</span></div>}>
           <Statistics activeSessionIds={activeSessionIds} onBack={backToBoard} onBoard={openBoardSession} onQueryChange={rememberStatisticsSearch} />
         </Suspense>
       )}

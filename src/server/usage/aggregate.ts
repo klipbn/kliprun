@@ -116,7 +116,7 @@ function groups(items: Contribution[], dimension: "source" | "agent" | "model" |
     const key = dimension === "source" ? item.session.source : dimension === "project" ? item.session.directory : item[dimension] ?? UNKNOWN;
     const list = map.get(key) ?? []; list.push(item); map.set(key, list);
   }
-  return [...map].map(([key, rows]) => ({ key, label: key === UNKNOWN ? "Неизвестно" : key, ...summarize(rows, timezone) }))
+  return [...map].map(([key, rows]) => ({ key, label: key === UNKNOWN ? "Unknown" : key, ...summarize(rows, timezone) }))
     .sort((a, b) => b.tokens.total - a.tokens.total || (b.running_ms ?? 0) - (a.running_ms ?? 0));
 }
 function sessionRows(data: UsageDataset, items: Contribution[], timezone: string, individual = false): StatsSessionRow[] {

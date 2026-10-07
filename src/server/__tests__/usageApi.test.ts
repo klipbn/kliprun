@@ -49,5 +49,6 @@ test("a terminated worker immediately fails later requests without hanging shutd
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error("worker failure hung a new request")), 1000)),
   ]);
   expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({ error: "Statistics temporarily unavailable" });
   await service.close();
 });

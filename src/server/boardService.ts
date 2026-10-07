@@ -177,7 +177,7 @@ export class BoardService {
       const openCodeHistory = this.engine.historyCards();
       const intervals = this.history.record([...openCodeHistory, ...codex.map(card => ({ sessionId: card.session_id, directory: card.directory, column: card.column }))], now);
       this.observe?.({ at: now, intervals, cards: [
-        ...openCodeHistory.map(card => ({ session_id: card.sessionId, source: "opencode" as const, parent_id: card.parent_id ?? null, title: card.title ?? "Сессия", directory: card.directory, agent: card.agent ?? null, model: card.model ?? null })),
+        ...openCodeHistory.map(card => ({ session_id: card.sessionId, source: "opencode" as const, parent_id: card.parent_id ?? null, title: card.title ?? "Session", directory: card.directory, agent: card.agent ?? null, model: card.model ?? null })),
         ...codex.map(card => ({ session_id: card.session_id, source: "codex" as const, parent_id: null, title: card.title, directory: card.directory, agent: card.agent?.name ?? null, model: this.codex.usageModel(card) })),
       ] });
       const data = combineBoard(this.engine.board(now), codex, now);

@@ -50,3 +50,28 @@ test("terminal disappearance closes attribution at its actual observed end", () 
   expect(store.dataset().attributions[0]).toMatchObject({ start: 100, end: 180 });
   store.close();
 });
+
+test("unavailable historical session metadata has an English placeholder", () => {
+  const store = new UsageStore(":memory:");
+  store.importIntervals(observation(100, "p/a").intervals, 100);
+  expect(store.dataset().sessions[0].title).toBe("Session unavailable");
+  store.close();
+});
+
+test("cached legacy placeholders become English without changing source session titles", () => {
+  const home = mkdtempSync(join(tmpdir(), "kliprun-usage-language-")); dirs.push(home);
+  const path = join(home, "usage.sqlite3");
+  const legacy = "\u0421\u0435\u0441\u0441\u0438\u044f \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430";
+  let store = new UsageStore(path);
+  store.importIntervals(observation(100, "p/a").intervals, 100);
+  store.upsertSession({ id: "ses_a", source: "opencode", parent_id: null, title: legacy, directory: "/p", created_at: 100, updated_at: 100 });
+  store.importIntervals([{ ...observation(100, "p/a").intervals[0], id: 2, session_id: "ses_source" }], 100);
+  store.upsertSession({ id: "ses_source", source: "opencode", parent_id: null, title: legacy, directory: "/p", created_at: 10, updated_at: 100 });
+  store.setCheckpoint("english_ui_placeholders_v1", false);
+  store.close();
+  store = new UsageStore(path);
+  const sessions = store.dataset().sessions;
+  expect(sessions.find(s => s.id === "ses_a")!.title).toBe("Session unavailable");
+  expect(sessions.find(s => s.id === "ses_source")!.title).toBe(legacy);
+  store.close();
+});

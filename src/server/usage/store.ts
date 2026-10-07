@@ -21,6 +21,20 @@ export class UsageStore {
       CREATE INDEX IF NOT EXISTS usage_attributions_interval ON usage_attributions(interval_id,start_at);
       CREATE TABLE IF NOT EXISTS usage_checkpoints(key TEXT PRIMARY KEY,data TEXT NOT NULL);
       PRAGMA user_version=1;`);
+    if (!this.getCheckpoint("english_ui_placeholders_v1")) {
+      // v0.8.0 cached a localized placeholder for missing metadata. Its
+      // creation time is the observed interval start and it has no source
+      // message facts. Preserve titles imported from real sessions.
+      const legacy = "\u0421\u0435\u0441\u0441\u0438\u044f \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430";
+      this.db.query(`UPDATE usage_sessions SET data=json_set(data,'$.title',?)
+        WHERE json_extract(data,'$.title')=?
+        AND NOT EXISTS(SELECT 1 FROM usage_events WHERE session_id=usage_sessions.id)
+        AND EXISTS(SELECT 1 FROM usage_intervals
+          WHERE json_extract(usage_intervals.data,'$.session_id')=usage_sessions.id
+          AND json_extract(usage_intervals.data,'$.entered_at')=json_extract(usage_sessions.data,'$.created_at'))`)
+        .run("Session unavailable", legacy);
+      this.setCheckpoint("english_ui_placeholders_v1", true);
+    }
   }
   upsertSession(session: UsageSession): void {
     const safe = { ...session, title: scrub(session.title), directory: scrub(session.directory) };
@@ -54,7 +68,7 @@ export class UsageStore {
       for (const interval of intervals) {
         insert.run(interval.id, JSON.stringify({ ...interval, directory: scrub(interval.directory) }));
         const session = this.db.query<{ data: string }, [string]>("SELECT data FROM usage_sessions WHERE id=? LIMIT 1").get(interval.session_id);
-        if (!session) this.upsertSession({ id: interval.session_id, source: interval.session_id.startsWith("codex:") ? "codex" : "opencode", parent_id: null, title: "Сессия недоступна", directory: interval.directory, created_at: interval.entered_at, updated_at: interval.exited_at ?? observedAt });
+        if (!session) this.upsertSession({ id: interval.session_id, source: interval.session_id.startsWith("codex:") ? "codex" : "opencode", parent_id: null, title: "Session unavailable", directory: interval.directory, created_at: interval.entered_at, updated_at: interval.exited_at ?? observedAt });
       }
       const old = Number(this.getCheckpoint("observed_at") ?? 0);
       this.setCheckpoint("observed_at", Math.max(old, observedAt));
