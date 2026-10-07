@@ -53,6 +53,8 @@ export interface CardPayload {
   mrs: MrLink[];
   subagent_count: number;
   subagent_active: number;
+  subagent_errors: number;
+  subagent_error_notes: string[];
   children: CardPayload[];
 }
 

@@ -109,9 +109,11 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
 - Columns: `attention` (sorted by stage_since), `running` (by last_event_at),
   `idle` (by finished_at/stage_since). Cards nest children only while sharing
   the parent's column; completed (IDLE) subagent cards are hidden from the
-  board entirely (`isHiddenIdleChild` — only a subagent with stage `Error`
-  stays visible). Column counts reflect displayed cards; parent cards carry
-  `subagent_active`/`subagent_count` (working of total subagents).
+  board entirely (`isHiddenIdleChild`). Column counts reflect displayed
+  cards; parent cards carry `subagent_active`/`subagent_count` (working of
+  total subagents). Failed subagents are also hidden; the parent carries
+  `subagent_errors`/`subagent_error_notes` rendered as an error chip
+  (hover for titles and error messages).
 - Watch at most 20 directories (most recently updated first).
 - Statistics history is independent of live board membership. Historical Codex
   records require `source=cli`, or `source=vscode` with `originator=codex-tui`;

@@ -182,6 +182,19 @@ export const SessionCard = memo(function SessionCard({ card, depth, selectedId, 
                 : card.subagent_count}
             </span>
           )}
+          {card.subagent_errors > 0 && (
+            <span
+              className="flex items-center gap-0.5 shrink-0 text-error"
+              title={[
+                `Subagents: ${card.subagent_errors} of ${card.subagent_count} failed`,
+                ...card.subagent_error_notes,
+              ].join("\n")}
+              data-testid="card-subagent-errors"
+            >
+              <CircleAlert className="w-3 h-3" />
+              {card.subagent_errors}
+            </span>
+          )}
           <span className="flex items-center gap-0.5 min-w-0 truncate" title={card.directory}>
             <Folder className="w-3 h-3 shrink-0" />
             <span className="truncate">{card.directory_name}</span>
@@ -210,7 +223,7 @@ export const SessionCard = memo(function SessionCard({ card, depth, selectedId, 
         </div>
       )}
 
-      {card.error && (
+      {typeof card.error === "string" && card.error.length > 0 && (
         <div
           className="pl-6 text-[11px] text-error truncate"
           title={card.reason ?? undefined}

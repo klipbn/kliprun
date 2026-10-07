@@ -47,7 +47,7 @@ export class CodexAdapter {
       reason: state?.reason ?? (state ? null : "Local journal unavailable"), error: state?.stage === "Error" ? "Turn failed" : null,
       last_tool: state?.lastTool ?? null, message_count: state?.messages.length ?? 0, finished_at: state?.finishedAt ?? null,
       tokens_total: state?.tokens ?? null, model_ref: scrub(state?.model ?? row.model), context: state?.context ? { ...state.context, model: scrub(state.context.model) } : null,
-      branch: scrub(branchOf(row.cwd)), mrs: [], subagent_count: 0, subagent_active: 0, children: [],
+      branch: scrub(branchOf(row.cwd)), mrs: [], subagent_count: 0, subagent_active: 0, subagent_errors: 0, subagent_error_notes: [], children: [],
     };
   }
 

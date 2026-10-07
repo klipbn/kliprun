@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   analyzeMessages,
+  formatMessageError,
   isHiddenIdleChild,
   truncate,
   type CardState,
@@ -64,6 +65,27 @@ describe("truncate", () => {
   });
 });
 
+describe("formatMessageError", () => {
+  test("extracts readable message from structured API errors", () => {
+    const apiError = {
+      name: "APIError",
+      data: { message: "Rate limit reached for requests", statusCode: 429, isRetryable: true },
+    };
+    expect(formatMessageError(apiError, 300)).toBe("APIError 429: Rate limit reached for requests");
+    expect(formatMessageError({ name: "MessageAbortedError", data: { message: "Aborted" } }, 300)).toBe(
+      "MessageAbortedError: Aborted",
+    );
+  });
+
+  test("handles strings, name-only objects, null and unknown shapes", () => {
+    expect(formatMessageError("boom", 300)).toBe("boom");
+    expect(formatMessageError({ name: "APIError" }, 300)).toBe("APIError");
+    expect(formatMessageError({ message: "plain failure" }, 300)).toBe("plain failure");
+    expect(formatMessageError(null, 300)).toBeNull();
+    expect(formatMessageError({ weird: true }, 300)).toBe('{"weird":true}');
+  });
+});
+
 test("Running attribution uses the streaming model instead of the previous context measurement", () => {
   const result = analyzeMessages([
     msg("old", 100, { role: "assistant", providerID: "openai", modelID: "old", tokens: { total: 100 }, time: { completed: 150 } }),
@@ -90,9 +112,9 @@ describe("isHiddenIdleChild", () => {
     expect(isHiddenIdleChild(child({ stage: "Inactive" }), { column: "idle" })).toBe(true);
   });
 
-  test("error subagent stays visible", () => {
-    expect(isHiddenIdleChild(child({ stage: "Error" }), { column: "running" })).toBe(false);
-    expect(isHiddenIdleChild(child({ stage: "Error" }), { column: "idle" })).toBe(false);
+  test("error subagents in idle are hidden too, surfaced via the parent chip", () => {
+    expect(isHiddenIdleChild(child({ stage: "Error" }), { column: "running" })).toBe(true);
+    expect(isHiddenIdleChild(child({ stage: "Error" }), { column: "idle" })).toBe(true);
   });
 
   test("running and attention children stay visible", () => {
@@ -185,6 +207,23 @@ describe("analyzeMessages", () => {
       new Map(),
     );
     expect(info.error).toBeNull();
+  });
+
+  test("structured assistant error renders a readable message, not [object Object]", () => {
+    const info = analyzeMessages(
+      [
+        msg("m1", 1000, {
+          role: "assistant",
+          error: {
+            name: "APIError",
+            data: { message: "Rate limit reached for requests", statusCode: 429, isRetryable: true },
+          },
+        }),
+      ],
+      new Map(),
+    );
+    expect(info.error).toBe("APIError 429: Rate limit reached for requests");
+    expect(info.error).not.toContain("[object Object]");
   });
 
   test("running tool sets last_tool; pending tool marks tool_pending", () => {

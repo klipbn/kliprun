@@ -55,6 +55,28 @@ export function truncate(value: string, limit: number): string {
   return collapsed.length <= limit ? collapsed : collapsed.slice(0, limit - 1) + "…";
 }
 
+export function formatMessageError(error: unknown, limit: number): string | null {
+  if (!error) return null;
+  if (typeof error === "string") return truncate(error, limit);
+  if (typeof error === "object") {
+    const record = error as { name?: unknown; message?: unknown; data?: unknown };
+    const data = record.data as { message?: unknown; statusCode?: unknown } | null | undefined;
+    const name = typeof record.name === "string" ? record.name : null;
+    const message =
+      typeof data?.message === "string" && data.message.trim()
+        ? data.message.trim()
+        : typeof record.message === "string" && record.message.trim()
+          ? record.message.trim()
+          : null;
+    const statusCode = typeof data?.statusCode === "number" ? String(data.statusCode) : null;
+    const prefix = [name, statusCode].filter(Boolean).join(" ");
+    const label = message !== null && prefix ? `${prefix}: ${message}` : (message ?? prefix);
+    if (label) return truncate(label, limit);
+    return truncate(JSON.stringify(error), limit);
+  }
+  return truncate(String(error), limit);
+}
+
 export interface MessageInfo {
   agentName: string | null;
   error: string | null;
@@ -100,16 +122,16 @@ function asNumber(value: unknown): number | null {
 
 /**
  * Completed subagent cards must not clutter the IDLE column: a child card
- * (parentId set, parent on board) in the idle column is hidden from the board
- * unless it failed. Error children stay visible as the failure signal.
+ * (parentId set, parent on board) in the idle column is hidden from the
+ * board entirely. Failed subagents surface through the parent's
+ * subagent_errors chip instead of separate error cards.
  */
 export function isHiddenIdleChild(
-  child: Pick<CardState, "parentId" | "column" | "stage">,
+  child: Pick<CardState, "parentId" | "column">,
   parent: Pick<CardState, "column"> | undefined,
 ): boolean {
   if (child.parentId === null || !parent) return false;
-  if (child.column !== "idle") return false;
-  return child.stage !== "Error";
+  return child.column === "idle";
 }
 
 /** Extract everything the classifier needs from a session's messages. */
@@ -148,7 +170,7 @@ export function analyzeMessages(
       const mode = message.agent ?? message.mode;
       if (mode) info.agentName = mode;
       const error = message.error;
-      info.error = error ? truncate(typeof error === "string" ? error : String(error), ERROR_MAX) : null;
+      info.error = formatMessageError(error, ERROR_MAX);
       if (message.modelID) {
         // Streaming turns have no token usage yet; keep the latest completed
         // measurement as the best-known context snapshot.
@@ -566,6 +588,7 @@ export class Engine {
     const subagentActive = subagents.filter(
       (c) => c.column === "running" || c.column === "attention",
     ).length;
+    const failed = subagents.filter((c) => c.stage === "Error");
     return {
       source: "opencode",
       session_id: card.sessionId,
@@ -592,6 +615,10 @@ export class Engine {
       mrs: sessionMrLinks(card.sessionId),
       subagent_count: subagents.length,
       subagent_active: subagentActive,
+      subagent_errors: failed.length,
+      subagent_error_notes: failed.slice(0, 3).map((c) =>
+        truncate(`${c.title || c.sessionId} — ${c.error ?? "failed"}`, 160),
+      ),
       children: card.children
         .map((id) => this.cards.get(id))
         .filter((child): child is CardState => child !== undefined)
@@ -784,7 +811,7 @@ export class Engine {
           usage: tokens ?? null,
           text: textParts.filter((t) => t.trim()).join("\n"),
           tools,
-          error: error ? truncate(String(error), ERROR_MAX) : null,
+          error: formatMessageError(error, ERROR_MAX),
         }),
       );
       if (modelRef && message.role === "assistant" && tokens) {
