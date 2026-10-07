@@ -15,9 +15,17 @@ updates reach the browser in ~100 ms over Server-Sent Events.
 
 ## Preview
 
+**Kanban board**
+
 ![KlipRun dashboard](docs/screenshot.png)
 
 *Demo data: fictional OpenCode and Codex CLI sessions, projects and messages.*
+
+**Usage dashboard**
+
+![KlipRun usage statistics with fictional demo data](docs/statistics.png)
+
+*Demo data: fictional sessions, projects and usage. English-language preview.*
 
 ## Features
 
