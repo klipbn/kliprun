@@ -11,6 +11,7 @@ import { Watcher, type CombinedEvent } from "./watcher";
 import { registerBoardRoute, registerHealthRoute, registerSessionRoute } from "./routes/api";
 import { closeAllSSEConnections, registerStreamRoute } from "./routes/stream";
 import { checkDbExists, getDbPath } from "./storage/db";
+import { StatsService, registerStatsRoutes } from "./usage/service";
 
 function resolvePort(args: string[]): number {
   const flagIndex = args.indexOf("--port");
@@ -31,13 +32,15 @@ const port = resolvePort(process.argv.slice(2));
 const app = new Hono();
 app.use("*", cors({ origin: (origin) => origin ?? "*" }));
 
-const service = new BoardService();
+const statistics = new StatsService();
+const service = new BoardService({ observe: observation => statistics.observe(observation) });
 const watcher = new Watcher(undefined, undefined, () => service.codex.watchPaths());
 
 registerHealthRoute(app, service);
 registerBoardRoute(app, service);
 registerSessionRoute(app, service);
 registerStreamRoute(app, watcher, service);
+registerStatsRoutes(app, statistics);
 
 // Production: serve the built client when present.
 app.use("*", serveStatic({ root: "./src/client/dist" }));
@@ -62,11 +65,12 @@ const server = Bun.serve({
 console.log(`[kliprun-bun] listening on http://127.0.0.1:${port}`);
 console.log(`[kliprun-bun] watching db: ${getDbPath()} (exists: ${checkDbExists()})`);
 
-function shutdown() {
+async function shutdown() {
   console.log("[kliprun-bun] shutting down…");
   closeAllSSEConnections();
   watcher.stop();
   service.stop();
+  await statistics.close();
   server.stop(true);
   process.exit(0);
 }

@@ -39,6 +39,42 @@ updates reach the browser in ~100 ms over Server-Sent Events.
   working agents, and the app version.
 - Live updates over Server-Sent Events with ETag polling fallback.
 - Monitoring of up to 20 directories with an OpenCode TUI currently open.
+- A **Статистика** button opens usage history: date and source/agent/model/project
+  filters, token breakdowns, observed Running time, activity heatmaps and task rankings.
+
+## Usage statistics
+
+Open **Статистика** in the upper-right corner, or visit `/stats`. The default
+period is the last seven calendar days in the browser's timezone. Presets,
+custom dates, multiple selections and ranking order are preserved in the URL.
+Relative presets advance at midnight; custom dates stay fixed.
+
+The dashboard imports the available OpenCode and Codex CLI history in a worker.
+Archived sessions are included. OpenCode tasks combine their main session and
+subagents, with each participant counted once. Codex subagents are excluded.
+Import progresses in bounded pages/chunks and resumes from durable checkpoints;
+unavailable sources and skipped records are shown separately.
+
+Tokens represent recorded request usage, not the context bar on a live card.
+Input, cache reads/writes, response and reasoning are normalized without double
+counting. Source-recorded costs are shown with their coverage; they are not a
+calculation of subscription charges. Usage without a confirmed date belongs only
+in all-history totals, not in daily charts.
+
+Work time means **only observed Running**. Sampling continues every three seconds
+while KlipRun's server runs, even without an open browser. Attention, IDLE and
+monitor downtime are excluded. Summed agent time counts parallel agents separately;
+activity time counts overlapping intervals once. Historical intervals without
+model/agent evidence remain in the unknown category. Missing observations remain
+explicitly unavailable or partial; the dashboard does not reconstruct past Running.
+Current partial calendar periods compare with the previous period through the
+same local clock time; calendar months, including month-to-date, compare with
+the preceding month.
+
+Statistics refresh every 30 seconds. Ranking can use Running, tokens or turns;
+opening a task shows participant/model contributions and a Running timeline.
+Opening statistics preserves the board and does not mark idle cards read;
+following a live task's link to its board details uses the normal read behavior.
 
 ## Requirements
 
@@ -87,7 +123,7 @@ session in a directory when Hermes is unavailable.
 |---|---|---|
 | `KLIPRUN_BUN_PORT` | Local web server port (`--port` flag wins) | `8792` |
 | `KLIPRUN_BUN_DB` | OpenCode SQLite database (opened read-only) | `~/.local/share/opencode/opencode.db` |
-| `KLIPRUN_BUN_HOME` | Directory for KlipRun local state (Kanban history) | `~/.kliprun_bun` |
+| `KLIPRUN_BUN_HOME` | Directory for KlipRun local state (Kanban history and usage index) | `~/.kliprun_bun` |
 | `KLIPRUN_BUN_MODELS` | Model catalog with context limits | `~/.cache/opencode/models.json` |
 | `KLIPRUN_BUN_CODEX_HOME` | Codex metadata database and session journals (read-only) | `$CODEX_HOME` or `~/.codex` |
 
@@ -136,6 +172,9 @@ local session will therefore not appear.
   reconstructed. File watching uses the existing SSE updates, with polling
   as fallback.
 
+These tail limits apply to live cards/details. The separate statistics importer
+streams full eligible journals in bounded chunks, without calling Codex APIs.
+
 The API includes `source: "opencode" | "codex"` on cards and details.
 Codex IDs are namespaced as `codex:<uuid>`; OpenCode IDs are unchanged.
 Kanban history is stored only in KlipRun's own database and stops counting
@@ -149,11 +188,22 @@ an interval when its card leaves the board.
 | `GET /api/board` | Board snapshot (ETag / 304) |
 | `GET /api/stream` | SSE: `board-update` pushes + 30 s heartbeat |
 | `GET /api/session/:id` | Messages, models, tools, MRs, Kanban history |
+| `GET /api/stats` | Usage summary, comparisons, charts, facets and import status |
+| `GET /api/stats/sessions` | Filtered task-tree ranking and pagination |
+| `GET /api/stats/session/:id` | Historical task statistics and participant timeline |
+
+Statistics filters: `from`/`to` are epoch milliseconds with an exclusive end;
+`timezone` is an IANA zone; repeat `source`, `agent`, `model` and `project` for
+multiple selections. `role=all|roots|children`, `granularity=day|week|month`.
+Unknown agent/model evidence uses `__unknown__`. Rankings accept
+`sort=running|tokens|turns`, `page` (starting at 1), and `limit` (1–50).
+`period=month` selects month-to-date comparison with the preceding month;
+the other presets compare the same number of calendar days.
 
 ## Development
 
 ```bash
-bun test src/server src/shared   # tests
+bun run test                    # server, shared and statistics calendar/filter tests
 bunx tsc -b                      # typecheck
 bun run build                    # build the client
 ```
@@ -166,6 +216,10 @@ their storage is never written. KlipRun does not create sessions, send prompts, 
 questions, approve permissions, or edit either agent's settings. Potential secrets
 are filtered before session details are sent to the browser. The Kanban
 history database stores only observed column intervals.
+The separate `usage.sqlite3` index stores derived usage events, minimal session
+metadata, interval attribution and import checkpoints. It stores no prompts,
+response text or tool inputs/outputs. Both local databases live under
+`KLIPRUN_BUN_HOME`; neither source database is modified.
 
 ## License
 

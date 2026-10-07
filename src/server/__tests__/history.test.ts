@@ -2,6 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { StatusHistoryStore } from "../history";
 
 describe("StatusHistoryStore", () => {
+  test("returns raw interval changes for statistics without merging restart gaps", () => {
+    const store = new StatusHistoryStore(":memory:");
+    const opened = store.record([{ sessionId: "ses_raw", directory: "/d", column: "running" }], 1000);
+    expect(opened).toMatchObject([{ session_id: "ses_raw", entered_at: 1000, exited_at: null }]);
+    const closed = store.closeOpenIntervals(2000);
+    expect(closed).toMatchObject([{ entered_at: 1000, exited_at: 2000, duration_ms: 1000 }]);
+    expect(store.record([{ sessionId: "ses_raw", directory: "/d", column: "running" }], 3000)).toMatchObject([{ entered_at: 3000 }]);
+    store.close();
+  });
   test("closes an observed interval when a CLI terminal disappears", () => {
     const store = new StatusHistoryStore(":memory:");
     store.record([{ sessionId: "codex:test", directory: "/d", column: "running" }], 1000);

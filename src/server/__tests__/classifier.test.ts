@@ -64,6 +64,15 @@ describe("truncate", () => {
   });
 });
 
+test("Running attribution uses the streaming model instead of the previous context measurement", () => {
+  const result = analyzeMessages([
+    msg("old", 100, { role: "assistant", providerID: "openai", modelID: "old", tokens: { total: 100 }, time: { completed: 150 } }),
+    msg("new", 200, { role: "assistant", providerID: "openai", modelID: "new" }),
+  ], new Map());
+  expect(result.modelRef).toBe("openai/old");
+  expect(result.currentModelRef).toBe("openai/new");
+});
+
 describe("isHiddenIdleChild", () => {
   function child(
     overrides: Partial<Pick<CardState, "parentId" | "column" | "stage">> = {},

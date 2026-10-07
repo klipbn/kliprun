@@ -8,6 +8,7 @@ import { BoardService } from "../boardService";
 import { CodexAdapter } from "../codex/adapter";
 import { StatusHistoryStore } from "../history";
 import { registerBoardRoute, registerSessionRoute } from "../routes/api";
+import type { UsageObservation } from "@shared/usage";
 import type { BoardPayload, CardPayload } from "@shared/types";
 
 const dirs: string[] = [];
@@ -83,4 +84,18 @@ test("failing OpenCode rebuild leaves Codex usable", () => {
   engine.rebuild = () => { throw new Error("fixture failure"); };
   service.invalidate();
   expect(service.getBoard().data.columns.running.cards.map(c => c.source)).toContain("codex");
+});
+
+test("liveness sampling records Running without browser requests and publishes raw observations", async () => {
+  const { engine, home, codex } = fixture();
+  const observed: UsageObservation[] = [];
+  const history = new StatusHistoryStore(":memory:");
+  const service = new BoardService({ engine, codex, history, observe: value => observed.push(value),
+    scanLiveness: async () => ({ directories: new Set([home]), sessionIds: new Set(["ses_test"]), waitingIds: new Set(), fallbackDirectories: new Set(), sessionDirectories: new Map() }),
+    scanCodex: async () => [],
+  });
+  services.push(service);
+  await service.refreshLivenessNow();
+  expect(history.get("ses_test", Date.now())[0].column).toBe("running");
+  expect(observed[0].intervals[0]).toMatchObject({ session_id: "ses_test", column_name: "running" });
 });

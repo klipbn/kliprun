@@ -8,6 +8,7 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { KanbanInterval } from "@shared/types";
+import type { UsageInterval } from "@shared/usage";
 
 export interface HistoryCard {
   sessionId: string;
@@ -15,15 +16,7 @@ export interface HistoryCard {
   column: string;
 }
 
-interface IntervalRow {
-  id: number;
-  session_id: string;
-  directory: string;
-  column_name: string;
-  entered_at: number;
-  exited_at: number | null;
-  duration_ms: number | null;
-}
+type IntervalRow = UsageInterval;
 
 export function defaultHistoryPath(): string {
   const home = process.env.KLIPRUN_BUN_HOME;
@@ -69,18 +62,19 @@ export class StatusHistoryStore {
   }
 
   /** Close/open intervals when a session's observed board column changes. */
-  record(cards: HistoryCard[], observedAt: number): void {
+  record(cards: HistoryCard[], observedAt: number): UsageInterval[] {
     const byId = new Map(cards.map((card) => [card.sessionId, card]));
     const active = this.db
       .query<IntervalRow, []>("SELECT * FROM status_intervals WHERE exited_at IS NULL")
       .all();
     const activeById = new Map(active.map((row) => [row.session_id, row]));
 
+    const closed: UsageInterval[] = [];
     const tx = this.db.transaction(() => {
       for (const [sessionId, row] of activeById) {
         const card = byId.get(sessionId);
         if (!card || row.column_name !== card.column || row.directory !== card.directory) {
-          this.closeInterval(row, observedAt);
+          closed.push(this.closeInterval(row, observedAt));
         }
       }
       for (const [sessionId, card] of byId) {
@@ -106,6 +100,7 @@ export class StatusHistoryStore {
         .run(observedAt);
     });
     tx();
+    return [...closed, ...this.db.query<IntervalRow, []>("SELECT * FROM status_intervals WHERE exited_at IS NULL").all()];
   }
 
   get(sessionId: string, now: number): KanbanInterval[] {
@@ -138,7 +133,7 @@ export class StatusHistoryStore {
   }
 
   /** End current intervals on shutdown/restart without counting downtime. */
-  closeOpenIntervals(at?: number): void {
+  closeOpenIntervals(at?: number): UsageInterval[] {
     let stamp = at;
     if (stamp === undefined) {
       const row = this.db
@@ -146,23 +141,26 @@ export class StatusHistoryStore {
           "SELECT value FROM history_metadata WHERE key = 'last_observed_at'",
         )
         .get();
-      if (!row) return;
+      if (!row) return [];
       stamp = row.value;
     }
     const rows = this.db
       .query<IntervalRow, []>("SELECT * FROM status_intervals WHERE exited_at IS NULL")
       .all();
+    const result: UsageInterval[] = [];
     const tx = this.db.transaction(() => {
-      for (const row of rows) this.closeInterval(row, stamp);
+      for (const row of rows) result.push(this.closeInterval(row, stamp));
     });
     tx();
+    return result;
   }
 
-  private closeInterval(row: IntervalRow, at: number): void {
+  private closeInterval(row: IntervalRow, at: number): UsageInterval {
     const endedAt = Math.max(row.entered_at, at);
     this.db
       .query("UPDATE status_intervals SET exited_at = ?, duration_ms = ? WHERE id = ?")
       .run(endedAt, endedAt - row.entered_at, row.id);
+    return { ...row, exited_at: endedAt, duration_ms: endedAt - row.entered_at };
   }
 
   close(): void {

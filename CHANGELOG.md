@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-07
+
+### Added
+- Usage statistics dashboard, opened from the upper-right button or `/stats`,
+  with calendar periods and source, agent, model and project filters.
+- Normalized token breakdowns, observed Running time, activity heatmaps,
+  comparisons with the previous period and sortable task rankings. OpenCode
+  task details include each subagent's contribution without double counting.
+- Worker-based import of available OpenCode and Codex CLI history, including
+  archived sessions, with durable checkpoints and explicit partial-data status.
+  The separate local usage index stores no prompts or response/tool text.
+- Read-only statistics APIs for summaries, task rankings and historical details.
+
+### Changed
+- Column observations continue while the server runs, even without an open
+  browser. Running totals exclude Attention, IDLE and monitor downtime.
+- Standard tests include the statistics calendar and URL-filter regressions.
+
 ## [0.7.0] - 2026-10-07
 
 ### Fixed

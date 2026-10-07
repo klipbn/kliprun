@@ -67,6 +67,7 @@ export interface MessageInfo {
   promptSnippet: string | null;
   messageCount: number;
   modelRef: string | null;
+  currentModelRef?: string | null;
   tokensTotal: number | null;
   modelUsages: Map<string, number>;
 }
@@ -143,6 +144,7 @@ export function analyzeMessages(
 
     const parts = partsByMessageId.get(row.id) ?? [];
     if (role === "assistant") {
+      info.currentModelRef = message.providerID && message.modelID ? `${message.providerID}/${message.modelID}` : null;
       const mode = message.agent ?? message.mode;
       if (mode) info.agentName = mode;
       const error = message.error;
@@ -160,6 +162,7 @@ export function analyzeMessages(
       }
     }
     if (role === "user") {
+      info.currentModelRef = null;
       // A new user turn retries/resumes the session; an earlier aborted
       // assistant message must not keep the card in the error state.
       info.error = null;
@@ -692,11 +695,15 @@ export class Engine {
   }
 
   /** Flat snapshot of kept cards for the history store. */
-  historyCards(): { sessionId: string; directory: string; column: string }[] {
+  historyCards(): { sessionId: string; directory: string; column: string; title: string; parent_id: string | null; agent: string | null; model: string | null }[] {
     return [...this.cards.values()].map((card) => ({
       sessionId: card.sessionId,
       directory: card.directory,
       column: card.column,
+      title: card.title,
+      parent_id: card.parentId,
+      agent: card.agentName,
+      model: this.analysis.get(card.sessionId)?.info.currentModelRef ?? null,
     }));
   }
 

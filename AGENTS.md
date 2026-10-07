@@ -34,6 +34,9 @@ extraction are out of scope for this adapter's first version.
 - The HTTP server must listen only on `127.0.0.1`.
 - The history database at `~/.kliprun_bun/status-history.sqlite3` belongs to
   KlipRun; it stores only observed column intervals, never OpenCode data.
+- The separate KlipRun-owned `usage.sqlite3` stores derived usage events,
+  minimal session metadata, Running attribution and importer checkpoints.
+  Never persist prompts, response text or tool inputs/outputs in this index.
 - Scrub potential secrets through `src/server/security.ts` before sending
   session details to the browser.
 - Display cards, models, tokens only when present in the DB or model catalog;
@@ -63,6 +66,11 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
 - `src/server/history.ts` — Kanban column intervals in KlipRun's own SQLite.
 - `src/server/boardService.ts` — board cache (TTL 1 s), rebuild orchestration,
   ETag, history recording, session detail.
+- `src/server/usage/` — worker-based read-only history import, normalized
+  request tokens, raw Running aggregation and statistics APIs. Import complete
+  histories in bounded pages/chunks; do not use live detail/tail limits.
+  Record board observations on the 3 s liveness loop without requiring a browser.
+  Recover open intervals at the last saved observation, never at restart time.
 - `src/server/modelLimits.ts` — model context limits from OpenCode's model
   catalog (`~/.cache/opencode/models.json`, env `KLIPRUN_BUN_MODELS`),
   reloaded by mtime. Unknown providers get no context bar.
@@ -105,6 +113,14 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
   stays visible). Column counts reflect displayed cards; parent cards carry
   `subagent_active`/`subagent_count` (working of total subagents).
 - Watch at most 20 directories (most recently updated first).
+- Statistics history is independent of live board membership. Historical Codex
+  records require `source=cli`, or `source=vscode` with `originator=codex-tui`;
+  archived CLI sessions qualify, Codex subagents do not. Never add historical
+  sessions to the board. Task rankings aggregate OpenCode descendants once.
+- Work time is observed Running only: summed agent time and union activity time.
+  Use raw intervals, preserving restart gaps; legacy intervals have unknown
+  model/agent attribution. Filters select contributions inside task trees.
+  Unknown dates enter all-history totals only; source costs show coverage.
 
 ## Configuration
 
@@ -128,7 +144,7 @@ bun run dev                # server with --watch (port 8792)
 bun run dev:client         # Vite dev server (5173, proxies /api → 8792)
 bun run build              # build client into src/client/dist
 bun run start              # production server (serves built client)
-bun test src/server src/shared   # tests
+bun run test               # server, shared and statistics calendar/filter tests
 bunx tsc -b                # typecheck (server + shared)
 ```
 

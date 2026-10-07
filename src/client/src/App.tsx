@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BarChart3 } from "lucide-react";
 import type { CardPayload, ColumnKey } from "@shared/types";
 import type { TrackedCard } from "@shared/readTracker";
 import { sessionCards } from "@shared/readTracker";
@@ -8,6 +9,8 @@ import { BoardColumn } from "./components/BoardColumn";
 import { DetailsPanel } from "./components/DetailsPanel";
 import { StatusBar } from "./components/StatusBar";
 import { formatRelativeTimeVerbose } from "@shared/format";
+
+const Statistics = lazy(() => import("./statistics/Statistics"));
 
 function ConnectionIndicator(state: "connecting" | "live" | "polling", error: string | null) {
   let dot = "bg-warning animate-pulse";
@@ -35,6 +38,38 @@ export default function App() {
   const now = useNow();
   const { isRead, counts, markRead } = useReadTracker(board);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showStatistics, setShowStatistics] = useState(() => window.location.pathname === "/stats");
+  const statisticsSearch = useRef(showStatistics ? window.location.search : "");
+  const activeSessionIds = useMemo(() => new Set(board ? sessionCards([
+    ...board.columns.attention.cards,
+    ...board.columns.running.cards,
+    ...board.columns.idle.cards,
+  ]).map((card) => card.session_id) : []), [board]);
+
+  useEffect(() => {
+    const navigate = () => setShowStatistics(window.location.pathname === "/stats");
+    window.addEventListener("popstate", navigate);
+    return () => window.removeEventListener("popstate", navigate);
+  }, []);
+  const openStatistics = () => {
+    window.history.pushState(null, "", `/stats${statisticsSearch.current}`);
+    setShowStatistics(true);
+  };
+  const backToBoard = useCallback(() => {
+    statisticsSearch.current = window.location.search;
+    window.history.pushState(null, "", "/");
+    setShowStatistics(false);
+  }, []);
+  const rememberStatisticsSearch = useCallback((search: string) => {
+    statisticsSearch.current = search;
+  }, []);
+  const openBoardSession = useCallback((id: string) => {
+    if (!activeSessionIds.has(id)) return;
+    const card = board ? findCard(board, id) : null;
+    if (card) markRead(card);
+    setSelectedId(id);
+    backToBoard();
+  }, [activeSessionIds, backToBoard, board, markRead]);
 
   const select = useCallback(
     (id: string) => {
@@ -66,9 +101,25 @@ export default function App() {
             updated {formatRelativeTimeVerbose(board.generated_at)}
           </span>
         )}
+        <button
+          type="button"
+          onClick={showStatistics ? backToBoard : openStatistics}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors ${showStatistics ? "border-accent/40 bg-accent/10 text-accent" : "border-border text-text-secondary hover:text-accent hover:border-accent/40"}`}
+          aria-pressed={showStatistics}
+          data-testid="statistics-button"
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          Статистика
+        </button>
       </header>
 
-      <main className="flex-1 min-h-0 flex">
+      {showStatistics && (
+        <Suspense fallback={<div className="flex-1 flex items-center justify-center gap-3 text-text-secondary"><Loader2Impl /><span>Загрузка статистики…</span></div>}>
+          <Statistics activeSessionIds={activeSessionIds} onBack={backToBoard} onBoard={openBoardSession} onQueryChange={rememberStatisticsSearch} />
+        </Suspense>
+      )}
+
+      <main className="flex-1 min-h-0 flex" style={showStatistics ? { display: "none" } : undefined}>
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-secondary" data-testid="loading-screen">
             <Loader2Impl />

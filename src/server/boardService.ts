@@ -6,15 +6,18 @@ import { BOARD_CACHE_TTL_MS, LIVENESS_INTERVAL_MS } from "@shared/constants";
 import { createHash } from "node:crypto";
 import { COLUMNS, type BoardPayload, type CardPayload, type KanbanInterval, type SessionDetailPayload } from "@shared/types";
 import { Engine } from "./classifier";
-import { StatusHistoryStore } from "./history";
+import { StatusHistoryStore, type HistoryCard } from "./history";
 import { openTuiSessions, type TuiLiveness } from "./liveness";
 import { querySession } from "./storage/queries";
 import { branchOf } from "./vcs";
 import { sessionMrLinks } from "./mergeRequests";
 import { CodexAdapter } from "./codex/adapter";
-import { scanCodexCli } from "./codex/liveness";
+import { scanCodexCli, type CliProcess } from "./codex/liveness";
+import type { UsageObservation } from "@shared/usage";
 
-type BoardEngine = Pick<Engine, "rebuild" | "board" | "historyCards" | "setTuiLiveness" | "sessionDirectory" | "detail">;
+type BoardEngine = Pick<Engine, "rebuild" | "board" | "setTuiLiveness" | "sessionDirectory" | "detail"> & {
+  historyCards(): Array<HistoryCard & Partial<{ title: string; parent_id: string | null; agent: string | null; model: string | null }>>;
+};
 
 /** Merge visible trees without changing either source's cached payload. */
 function combineBoard(board: BoardPayload, codex: CardPayload[], now: number): BoardPayload {
@@ -62,15 +65,24 @@ export class BoardService {
   private stopped = false;
   private codexScanError: string | null = null;
   readonly startedAt = Date.now();
+  private readonly observe?: (observation: UsageObservation) => void;
+  private readonly scanLiveness: () => Promise<TuiLiveness>;
+  private readonly scanCodex: () => Promise<CliProcess[]>;
 
-  constructor(options: { engine?: BoardEngine; history?: StatusHistoryStore; codex?: CodexAdapter } = {}) {
+  constructor(options: { engine?: BoardEngine; history?: StatusHistoryStore; codex?: CodexAdapter; observe?: (observation: UsageObservation) => void;
+    scanLiveness?: () => Promise<TuiLiveness>; scanCodex?: () => Promise<CliProcess[]> } = {}) {
     this.engine = options.engine ?? new Engine();
     this.history = options.history ?? new StatusHistoryStore();
     this.codex = options.codex ?? new CodexAdapter();
+    this.observe = options.observe;
+    this.scanLiveness = options.scanLiveness ?? openTuiSessions;
+    this.scanCodex = options.scanCodex ?? scanCodexCli;
   }
 
   start(): void {
     if (this.livenessTimer) return;
+    // Recover a crashed monitor at its last sample, never at this startup time.
+    this.history.closeOpenIntervals();
     void this.refreshLiveness();
     this.livenessTimer = setInterval(() => {
       void this.refreshLiveness();
@@ -81,7 +93,8 @@ export class BoardService {
     this.stopped = true;
     if (this.livenessTimer) clearInterval(this.livenessTimer);
     this.livenessTimer = null;
-    this.history.closeOpenIntervals();
+    const intervals = this.history.closeOpenIntervals();
+    if (intervals.length) this.observe?.({ at: Math.max(...intervals.map(i => i.exited_at!)), intervals, cards: [] });
     this.history.close();
     this.codex.close();
   }
@@ -90,7 +103,7 @@ export class BoardService {
     if (this.scanning || this.stopped) return;
     this.scanning = true;
     try {
-      const [openCode, codex] = await Promise.allSettled([openTuiSessions(), scanCodexCli()]);
+      const [openCode, codex] = await Promise.allSettled([this.scanLiveness(), this.scanCodex()]);
       if (this.stopped) return;
       if (codex.status === "fulfilled") {
         this.codex.setProcesses(codex.value);
@@ -100,22 +113,25 @@ export class BoardService {
         this.codexScanError = "Codex CLI process scan unavailable";
       }
       this.cache = null;
-      if (openCode.status !== "fulfilled") return;
-      const liveness = openCode.value;
-      this.lastLiveness = liveness;
-      const changed = this.engine.setTuiLiveness(liveness);
-      if (changed) {
-        this.livenessChanged = true;
-        this.cache = null;
+      if (openCode.status === "fulfilled") {
+        const liveness = openCode.value;
+        this.lastLiveness = liveness;
+        const changed = this.engine.setTuiLiveness(liveness);
+        if (changed) {
+          this.livenessChanged = true;
+          this.cache = null;
+        }
       }
+      // Sampling is independent of /api/board and browser visibility.
+      this.buildBoard(Date.now());
     } catch (error) {
       console.warn("[board] liveness scan failed:", error instanceof Error ? error.message : error);
     } finally { this.scanning = false; }
   }
 
   /** Hermes watcher fast-path: refresh liveness immediately on fs events. */
-  refreshLivenessNow(): void {
-    void this.refreshLiveness();
+  refreshLivenessNow(): Promise<void> {
+    return this.refreshLiveness();
   }
 
   invalidate(): void {
@@ -158,7 +174,12 @@ export class BoardService {
         console.warn("[board] OpenCode rebuild failed:", error instanceof Error ? error.message : error);
       }
       const codex = this.codex.cards(now);
-      this.history.record([...this.engine.historyCards(), ...codex.map(card => ({ sessionId: card.session_id, directory: card.directory, column: card.column }))], now);
+      const openCodeHistory = this.engine.historyCards();
+      const intervals = this.history.record([...openCodeHistory, ...codex.map(card => ({ sessionId: card.session_id, directory: card.directory, column: card.column }))], now);
+      this.observe?.({ at: now, intervals, cards: [
+        ...openCodeHistory.map(card => ({ session_id: card.sessionId, source: "opencode" as const, parent_id: card.parent_id ?? null, title: card.title ?? "Сессия", directory: card.directory, agent: card.agent ?? null, model: card.model ?? null })),
+        ...codex.map(card => ({ session_id: card.session_id, source: "codex" as const, parent_id: null, title: card.title, directory: card.directory, agent: card.agent?.name ?? null, model: this.codex.usageModel(card) })),
+      ] });
       const data = combineBoard(this.engine.board(now), codex, now);
       const etag = `"${createHash("sha1").update(JSON.stringify({ ...data, generated_at: 0 })).digest("hex").slice(0, 16)}"`;
       this.cache = { data, etag, livenessAt: now };

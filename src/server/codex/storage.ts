@@ -13,6 +13,7 @@ export interface CodexThread {
   rollout_path: string;
   updated_at: number;
   model: string | null;
+  model_provider?: string | null;
   /** TUI clients using the shared app-server may persist source=vscode. */
   originator?: string | null;
 }
@@ -54,7 +55,7 @@ export class CodexStorage {
   candidates(processes: CliProcess[]): CodexThread[] {
     const db = this.connect();
     const hasOriginator = this.columns.has("originator");
-    const fields = `id, cwd, title, source, rollout_path, updated_at, ${this.columns.has("model") ? "model" : "NULL AS model"}, ${hasOriginator ? "originator" : "NULL AS originator"}`;
+    const fields = `id, cwd, title, source, rollout_path, updated_at, ${this.columns.has("model") ? "model" : "NULL AS model"}, ${this.columns.has("model_provider") ? "model_provider" : "NULL AS model_provider"}, ${hasOriginator ? "originator" : "NULL AS originator"}`;
     const cliSource = hasOriginator ? "(source = 'cli' OR (source = 'vscode' AND originator = 'codex-tui'))" : "source = 'cli'";
     const rows = new Map<string, CodexThread>();
     const referencedIds = new Set<string>();

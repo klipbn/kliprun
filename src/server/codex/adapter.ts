@@ -70,5 +70,12 @@ export class CodexAdapter {
     return [...(this.storage.path ? [this.storage.path, `${this.storage.path}-wal`] : []), ...[...this.threads.values()].map(row => row.rollout_path)];
   }
 
+  /** Current journal model, with only an explicitly persisted provider. */
+  usageModel(card: CardPayload): string | null {
+    if (!card.model_ref) return null;
+    const provider = this.threads.get(card.session_id.replace(/^codex:/, ""))?.model_provider;
+    return provider ? scrub(`${provider}/${card.model_ref}`) : card.model_ref;
+  }
+
   close(): void { this.storage.close(); this.threads.clear(); this.readers.clear(); }
 }

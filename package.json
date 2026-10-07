@@ -1,6 +1,6 @@
 {
   "name": "kliprun",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "A local, read-only Kanban board for observing OpenCode and Codex CLI sessions",
   "type": "module",
   "module": "src/server/index.ts",
@@ -8,7 +8,7 @@
     "dev": "bun run --watch src/server/index.ts",
     "dev:client": "cd src/client && bun run dev",
     "start": "bun run src/server/index.ts",
-    "test": "bun test src/server src/shared",
+    "test": "bun test src/server src/shared src/client/src/statistics/__tests__",
     "typecheck": "tsc -b",
     "build": "cd src/client && bun install && bun run build"
   },
