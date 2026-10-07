@@ -17,11 +17,11 @@ export function useStatsRequest<T>(url: string | null, refresh: number) {
       setPending(true);
       try {
         const response = await fetch(url!, { signal: requestController.signal });
-        if (!response.ok) throw new Error(`Не удалось загрузить статистику (${response.status})`);
+        if (!response.ok) throw new Error(`Unable to load statistics (${response.status})`);
         const result = await response.json() as T;
         if (live && controller === requestController) { setData(result); setError(null); }
       } catch (err) {
-        if (live && controller === requestController && !(err instanceof DOMException && err.name === "AbortError")) setError(err instanceof Error ? err.message : "Ошибка загрузки статистики");
+        if (live && controller === requestController && !(err instanceof DOMException && err.name === "AbortError")) setError(err instanceof Error ? err.message : "Unable to load statistics");
       } finally { if (live && controller === requestController && !requestController.signal.aborted) setPending(false); }
     }
     void load();

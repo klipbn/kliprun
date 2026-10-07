@@ -54,7 +54,7 @@ describe("usage aggregation", () => {
   test("missing observations are null, and legacy Running is not attributed to a current model", () => {
     expect(buildDashboard({ ...data, intervals: [], attributions: [] }, filters, 200).summary.running_ms).toBeNull();
     expect(buildDashboard({ ...data, attributions: [] }, { ...filters, models: ["openai/a"] }, 200).summary.running_ms).toBeNull();
-    expect(buildDashboard({ ...data, attributions: [] }, filters, 200).breakdowns.model.find(r => r.key === "__unknown__")?.running_ms).toBe(200);
+    expect(buildDashboard({ ...data, attributions: [] }, filters, 200).breakdowns.model.find(r => r.key === "__unknown__")).toMatchObject({ running_ms: 200, label: "Unknown" });
   });
   test("a later IDLE sample cannot make earlier unobserved work appear fully covered", () => {
     const result = buildDashboard({ ...data, events: [{ ...events[0], at: 50 }], intervals: [{ ...intervals[0], column_name: "idle", entered_at: 150, exited_at: 200 }], attributions: [] }, filters, 200);

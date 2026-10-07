@@ -72,7 +72,7 @@ export function registerStatsRoutes(app: Hono, service: StatsService): void {
     let filters: StatsFilters;
     try { filters = parseStatsFilters(new URL(c.req.url)); } catch { return c.json({ error: "invalid statistics filters" }, 400); }
     try { c.header("Cache-Control", "no-store"); return c.json(await service.query("dashboard", filters)); }
-    catch { return c.json({ error: "Статистика временно недоступна" }, 503); }
+    catch { return c.json({ error: "Statistics temporarily unavailable" }, 503); }
   });
   app.get("/api/stats/sessions", async c => {
     let filters: StatsFilters, page: number, limit: number, sort: string;
@@ -82,7 +82,7 @@ export function registerStatsRoutes(app: Hono, service: StatsService): void {
       if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 50 || !["running", "tokens", "turns"].includes(sort)) throw new Error("invalid pagination");
     } catch { return c.json({ error: "invalid statistics filters" }, 400); }
     try { c.header("Cache-Control", "no-store"); return c.json(await service.query("sessions", filters, { page, limit, sort })); }
-    catch { return c.json({ error: "Статистика временно недоступна" }, 503); }
+    catch { return c.json({ error: "Statistics temporarily unavailable" }, 503); }
   });
   app.get("/api/stats/session/:id", async c => {
     const id = c.req.param("id");
@@ -90,6 +90,6 @@ export function registerStatsRoutes(app: Hono, service: StatsService): void {
     let filters: StatsFilters;
     try { filters = parseStatsFilters(new URL(c.req.url)); } catch { return c.json({ error: "invalid statistics filters" }, 400); }
     try { c.header("Cache-Control", "no-store"); return c.json(await service.query("detail", filters, { sessionId: id })); }
-    catch { return c.json({ error: "Статистика временно недоступна" }, 503); }
+    catch { return c.json({ error: "Statistics temporarily unavailable" }, 503); }
   });
 }
