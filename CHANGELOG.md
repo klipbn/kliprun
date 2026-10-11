@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-10-11
+
+### Added
+- `scripts/kliprun` process helper with `start`, `stop`, `restart`, `status`
+  and `log` commands, plus `install` linking `kliprun-start`-style commands
+  into `~/.local/bin` (or a given directory). Start refuses to touch a foreign
+  process on the port; stop sends SIGTERM only to a recognized KlipRun server.
+
+## [0.8.1] - 2026-10-11
+
+### Fixed
+- Codex 0.162 "code mode" TUI sessions persisted as `source=vscode` with
+  `originator=codex_hermes_monitor` are now matched through the shared
+  daemon's writer locks and counted in statistics; previously the live card
+  was omitted as an ambiguous match. A shared `TUI_ORIGINATORS` allowlist now
+  covers storage, liveness and the usage importer. Plain `vscode` records and
+  `codex-desktop` remain excluded.
+
 ## [0.8.0] - 2026-10-07
 
 ### Added

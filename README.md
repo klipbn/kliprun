@@ -107,6 +107,24 @@ bun run dev            # server with --watch on :8792
 bun run dev:client     # Vite dev server on :5173, proxies /api → :8792
 ```
 
+## Run as a command
+
+`scripts/kliprun` wraps the server lifecycle:
+
+```bash
+./scripts/kliprun install        # links kliprun-* commands into ~/.local/bin
+kliprun-start                    # start the server → http://127.0.0.1:8792
+kliprun-status                   # health summary and board URL
+kliprun-log                      # tail the server log
+kliprun-restart
+kliprun-stop
+```
+
+`install` accepts a target directory (`./scripts/kliprun install ~/bin`).
+`KLIPRUN_DIR` and `KLIPRUN_BUN_PORT` are honored when set. `start` refuses to
+touch a foreign process on the port; `stop` sends SIGTERM only to a recognized
+KlipRun server. The PID file and log live under `KLIPRUN_BUN_HOME`.
+
 ## How session cards are classified
 
 - **Needs attention** — the TUI is waiting for a permission or an answer
@@ -153,8 +171,9 @@ windows and resumed sessions visible when older sessions remain in the database.
 Files merely left on disk do not count.
 Without either signal, the directory must contain exactly one non-archived
 CLI session and one CLI terminal. CLI sessions
-are identified by `source=cli`, or by `source=vscode` together with
-`originator=codex-tui` for TUI clients using the shared app-server.
+are identified by `source=cli`, or by `source=vscode` together with a TUI
+`originator` (`codex-tui`, or `codex_hermes_monitor` used by Codex "code
+mode") for TUI clients using the shared app-server.
 Ambiguous matches are omitted, with reasons available in
 `GET /api/health` → `codex_diagnostics`. No match is inferred from a
 `source=vscode` record alone. CLI versions which do not expose a matching

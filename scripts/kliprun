@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# KlipRun process helper (available from any directory after `install`).
+set -u
+
+source="${BASH_SOURCE[0]}"
+while [[ -L "$source" ]]; do
+  target="$(readlink "$source")"
+  if [[ "$target" == /* ]]; then
+    source="$target"
+  else
+    source="$(cd "$(dirname "$source")" && pwd)/$target"
+  fi
+done
+script_path="$(cd "$(dirname "$source")" && pwd)"
+KLIPRUN_DIR="${KLIPRUN_DIR:-$(cd "$script_path/.." && pwd)}"
+KLIPRUN_PORT="${KLIPRUN_BUN_PORT:-8792}"
+KLIPRUN_STATE_DIR="${KLIPRUN_BUN_HOME:-$HOME/.kliprun_bun}"
+PID_FILE="$KLIPRUN_STATE_DIR/kliprun.pid"
+LOG_FILE="$KLIPRUN_STATE_DIR/kliprun.log"
+COMMANDS="start | stop | restart | status | log | install [dir]"
+
+usage() {
+  printf 'Usage: kliprun %s\n' "$COMMANDS"
+}
+
+is_kliprun_command() {
+  case "$1" in
+    *"src/server/index.ts"*|*kliprun_bun*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+listener_pid() {
+  local pids
+  pids="$(lsof -tiTCP:"$KLIPRUN_PORT" -sTCP:LISTEN 2>/dev/null || true)"
+  [[ -z "$pids" ]] && return 1
+  printf '%s' "$pids"
+}
+
+cmd_start() {
+  if [[ ! -f "$KLIPRUN_DIR/package.json" ]]; then
+    printf 'KlipRun not found: %s\n' "$KLIPRUN_DIR"
+    return 1
+  fi
+  if [[ ! -f "$KLIPRUN_DIR/src/client/dist/index.html" ]]; then
+    printf 'Client build missing; run: cd %s && bun install && bun run build\n' "$KLIPRUN_DIR"
+    return 1
+  fi
+
+  local existing_pid
+  existing_pid="$(listener_pid || true)"
+  if [[ -n "$existing_pid" ]]; then
+    if [[ "$(printf '%s\n' "$existing_pid" | wc -l | tr -d ' ')" -eq 1 ]] &&
+      is_kliprun_command "$(ps -p "$existing_pid" -o command= 2>/dev/null || true)"; then
+      printf 'KlipRun is already listening on port %s (PID %s).\n' "$KLIPRUN_PORT" "$existing_pid"
+      return 0
+    fi
+    printf 'Port %s is already in use; not starting KlipRun.\n' "$KLIPRUN_PORT"
+    return 1
+  fi
+
+  mkdir -p "$KLIPRUN_STATE_DIR"
+  (
+    cd "$KLIPRUN_DIR" || exit 1
+    nohup bun run src/server/index.ts > "$LOG_FILE" 2>&1 < /dev/null &
+    pid=$!
+    sleep 1
+    if is_kliprun_command "$(ps -p "$pid" -o command= 2>/dev/null)"; then
+      printf '%s\n' "$pid" > "$PID_FILE"
+      printf 'KlipRun started (PID %s); log: %s\n' "$pid" "$LOG_FILE"
+    else
+      printf 'KlipRun did not start; check %s\n' "$LOG_FILE"
+      exit 1
+    fi
+  )
+}
+
+cmd_stop() {
+  local pids pid command recorded_pid
+  pids="$(listener_pid || true)"
+  if [[ -z "$pids" ]]; then
+    printf 'No process is listening on port %s.\n' "$KLIPRUN_PORT"
+    return 1
+  fi
+  if [[ "$(printf '%s\n' "$pids" | wc -l | tr -d ' ')" -ne 1 ]]; then
+    printf 'Expected one listener on port %s; found:\n%s\n' "$KLIPRUN_PORT" "$pids"
+    return 1
+  fi
+
+  pid="$pids"
+  command="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+  if ! is_kliprun_command "$command"; then
+    printf 'PID %s is not a recognized KlipRun command; not stopping it.\n%s\n' "$pid" "$command"
+    return 1
+  fi
+
+  kill -TERM "$pid" || return 1
+  for _ in 1 2 3 4 5; do
+    sleep 1
+    command="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+    if ! is_kliprun_command "$command"; then
+      if [[ -f "$PID_FILE" ]]; then
+        recorded_pid=""
+        IFS= read -r recorded_pid < "$PID_FILE" || true
+        [[ "$recorded_pid" == "$pid" ]] && rm -f "$PID_FILE"
+      fi
+      printf 'KlipRun stopped (PID %s).\n' "$pid"
+      return 0
+    fi
+  done
+  printf 'SIGTERM sent to KlipRun PID %s; it is still shutting down.\n' "$pid"
+}
+
+cmd_status() {
+  curl -fsS "http://127.0.0.1:${KLIPRUN_PORT}/api/health" |
+    python3 -c 'import json,sys; h=json.load(sys.stdin); print("Status: ok; TUI directories: {}; uptime: {}s".format(h["tui_directories"], h["uptime_s"]))' &&
+    printf 'Board: http://127.0.0.1:%s\n' "$KLIPRUN_PORT"
+}
+
+cmd_log() {
+  if [[ ! -f "$LOG_FILE" ]]; then
+    printf 'No log yet: %s\n' "$LOG_FILE"
+    return 1
+  fi
+  tail -n "${1:-40}" "$LOG_FILE"
+}
+
+cmd_install() {
+  local bin_dir="${1:-$HOME/.local/bin}"
+  mkdir -p "$bin_dir" || return 1
+  local name
+  for name in kliprun kliprun-start kliprun-stop kliprun-status kliprun-restart kliprun-log; do
+    ln -sf "$script_path/kliprun" "$bin_dir/$name"
+  done
+  printf 'Linked kliprun commands into %s\n' "$bin_dir"
+  case ":$PATH:" in
+    *":$bin_dir:"*) ;;
+    *) printf 'Warning: %s is not in your PATH.\n' "$bin_dir" ;;
+  esac
+}
+
+cmd_restart() {
+  cmd_stop || true
+  sleep 1
+  cmd_start
+}
+
+case "$(basename "$0")" in
+  kliprun-start) set -- start "${@:2}" ;;
+  kliprun-stop) set -- stop "${@:2}" ;;
+  kliprun-status) set -- status "${@:2}" ;;
+  kliprun-restart) set -- restart "${@:2}" ;;
+  kliprun-log) set -- log "${@:2}" ;;
+esac
+
+case "${1:-}" in
+  start) shift; cmd_start "$@" ;;
+  stop) shift; cmd_stop "$@" ;;
+  restart) shift; cmd_restart "$@" ;;
+  status) shift; cmd_status "$@" ;;
+  log) shift; cmd_log "$@" ;;
+  install) shift; cmd_install "$@" ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 1 ;;
+esac
