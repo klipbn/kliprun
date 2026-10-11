@@ -22,6 +22,19 @@ export function codexHome(): string {
   return process.env.KLIPRUN_BUN_CODEX_HOME ?? process.env.CODEX_HOME ?? join(homedir(), ".codex");
 }
 
+/**
+ * Originators that identify a terminal TUI client on the shared app-server.
+ * Codex 0.162 "code mode" persists working TUI threads as codex_hermes_monitor.
+ * vscode alone or other origins (codex-desktop) never establish CLI membership.
+ */
+export const TUI_ORIGINATORS = ["codex-tui", "codex_hermes_monitor"] as const;
+
+export const TUI_ORIGIN_SQL = `(source = 'cli' OR (source = 'vscode' AND originator IN (${TUI_ORIGINATORS.map(name => `'${name}'`).join(",")})))`;
+
+export function isTuiThread(row: { source: string; originator?: string | null }): boolean {
+  return row.source === "cli" || (row.source === "vscode" && (TUI_ORIGINATORS as readonly string[]).includes(row.originator ?? ""));
+}
+
 /** Only metadata. Rollouts are tailed separately after CLI membership is known. */
 export class CodexStorage {
   private db: Database | null = null;
@@ -56,7 +69,7 @@ export class CodexStorage {
     const db = this.connect();
     const hasOriginator = this.columns.has("originator");
     const fields = `id, cwd, title, source, rollout_path, updated_at, ${this.columns.has("model") ? "model" : "NULL AS model"}, ${this.columns.has("model_provider") ? "model_provider" : "NULL AS model_provider"}, ${hasOriginator ? "originator" : "NULL AS originator"}`;
-    const cliSource = hasOriginator ? "(source = 'cli' OR (source = 'vscode' AND originator = 'codex-tui'))" : "source = 'cli'";
+    const cliSource = hasOriginator ? TUI_ORIGIN_SQL : "source = 'cli'";
     const rows = new Map<string, CodexThread>();
     const referencedIds = new Set<string>();
     const directories = [...new Set(processes.map(p => p.cwd))].slice(0, MAX_WATCHED_DIRECTORIES);

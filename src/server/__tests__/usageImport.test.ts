@@ -95,12 +95,14 @@ describe("read-only history importer", () => {
   test("streams the complete Codex journal beyond 4 MiB and resumes counters without counting duplicates", async () => {
     const dir = temp(); const { db, path } = codexDatabase(dir); const sink = memorySink(); const rollout = join(dir, "session.jsonl");
     insertThread(db, "cli", rollout, "cli", null, 1); insertThread(db, "tui", join(dir, "tui.jsonl"), "vscode", "codex-tui");
-    insertThread(db, "desktop", rollout, "vscode", "codex-desktop"); db.close();
+    insertThread(db, "desktop", rollout, "vscode", "codex-desktop");
+    insertThread(db, "hermes", join(dir, "hermes.jsonl"), "vscode", "codex_hermes_monitor"); db.close();
     writeFileSync(rollout, event("session_meta", { model_provider: "openai" }) + event("turn_context", { model: "first" }) + event("event_msg", { type: "task_started", turn_id: "turn-a" }) + usage(counter(120, 100, 20, 40, 5)));
     const filler = event("response_item", { type: "message", role: "assistant", content: [{ text: "x".repeat(700_000) }] });
     for (let i = 0; i < 7; i++) appendFileSync(rollout, filler);
     appendFileSync(rollout, usage(counter(120, 100, 20, 40, 5), at + 1) + event("turn_context", { model: "second" }, at + 2) + usage(counter(157, 130, 27, 50, 7), at + 3));
     writeFileSync(join(dir, "tui.jsonl"), usage(counter(9, 7, 2)));
+    writeFileSync(join(dir, "hermes.jsonl"), usage(counter(50, 40, 10)));
     const before = readFileSync(path);
     const importer = new UsageImporter({ opencodePath: join(dir, "missing"), codexHome: dir }, sink);
     await importer.runOnce();
@@ -109,6 +111,7 @@ describe("read-only history importer", () => {
     expect(cliUsage.map(row => row.model)).toEqual(["openai/first", "openai/second"]);
     expect(cliUsage[1]?.tokens).toEqual({ total: 37, input: 20, output: 5, reasoning: 2, cache_read: 10, cache_write: 0, other: 0 });
     expect(sink.sessions.has("codex:desktop")).toBe(false);
+    expect(sink.sessions.get("codex:hermes")).toMatchObject({ source: "codex", directory: "/project" });
     expect(sink.sessions.get("codex:cli")?.title).toBe("token=[redacted]");
     expect([...sink.events.values()].filter(row => row.kind === "turn")).toHaveLength(1);
     expect(readFileSync(path)).toEqual(before);

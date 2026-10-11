@@ -19,7 +19,11 @@ merely present on disk. Otherwise
 require one CLI session and one terminal per directory. Ambiguous matches
 are omitted with `/api/health` diagnostics.
 `source=vscode` alone never establishes CLI membership; paired with
-`originator=codex-tui` it identifies a TUI using the shared app-server.
+`originator=codex-tui` (or `originator=codex_hermes_monitor`, how Codex
+0.162 "code mode" persists working TUI threads) it identifies a TUI using
+the shared app-server. The TUI-originator allowlist lives in
+`src/server/codex/storage.ts` (`TUI_ORIGINATORS`); keep storage, liveness
+and the usage importer on the same predicate.
 Cards/details carry
 `source`; Codex IDs use `codex:<uuid>`. Unknown Codex status belongs in IDLE
 with neutral styling, never an invented completion. Codex subagents and MR
@@ -116,7 +120,8 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
   (hover for titles and error messages).
 - Watch at most 20 directories (most recently updated first).
 - Statistics history is independent of live board membership. Historical Codex
-  records require `source=cli`, or `source=vscode` with `originator=codex-tui`;
+  records require `source=cli`, or `source=vscode` with a TUI originator
+  (`codex-tui`/`codex_hermes_monitor`);
   archived CLI sessions qualify, Codex subagents do not. Never add historical
   sessions to the board. Task rankings aggregate OpenCode descendants once.
 - Work time is observed Running only: summed agent time and union activity time.

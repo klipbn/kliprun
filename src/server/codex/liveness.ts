@@ -1,6 +1,6 @@
 import { realpathSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { codexHome, type CodexThread } from "./storage";
+import { codexHome, isTuiThread, type CodexThread } from "./storage";
 
 export interface CliProcess {
   pid: string;
@@ -117,9 +117,7 @@ export function matchCliSessions(processes: CliProcess[], candidates: CodexThrea
     const terminals = matches.filter(match => match.cwd === cwd);
     const unmatched = terminals.filter(match => match.direct.length !== 1);
     if (!unmatched.length) continue;
-    const sameDirectory = candidates.filter(row =>
-      (row.source === "cli" || (row.source === "vscode" && row.originator === "codex-tui")) && canonicalPath(row.cwd) === cwd,
-    );
+    const sameDirectory = candidates.filter(row => isTuiThread(row) && canonicalPath(row.cwd) === cwd);
     const loaded = sameDirectory.filter(row => !selected.has(row.id) &&
       unmatched.some(({ process }) => process.daemonSessionIds?.includes(row.id)));
     // Match board membership as a set; do not invent individual PID-to-session links.

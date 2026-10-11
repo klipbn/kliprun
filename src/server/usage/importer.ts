@@ -4,6 +4,7 @@ import { createHash, type Hash } from "node:crypto";
 import { closeSync, openSync, readSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { scrub } from "../security";
+import { TUI_ORIGIN_SQL } from "../codex/storage";
 import { nonnegative, normalizeCodexTokens, normalizeOpenCodeTokens, record } from "./normalize";
 
 const PAGE = 250;
@@ -209,7 +210,7 @@ export class UsageImporter {
     try {
       const schema = columns(db, "threads");
       if (!["id", "cwd", "title", "source", "rollout_path", "updated_at"].every(key => schema.has(key))) throw new Error("Unsupported Codex history schema");
-      let eligible = schema.has("originator") ? "(source = 'cli' OR (source = 'vscode' AND originator = 'codex-tui'))" : "source = 'cli'";
+      let eligible = schema.has("originator") ? TUI_ORIGIN_SQL : "source = 'cli'";
       if (schema.has("parent_thread_id")) eligible += " AND parent_thread_id IS NULL";
       this.update("codex", { total: db.query<{ count: number }, []>(`SELECT COUNT(*) AS count FROM threads WHERE ${eligible}`).get()!.count });
       const rows = db.query<CodexRow, [string, number]>(`SELECT id,cwd,title,rollout_path,${schema.has("created_at") ? "created_at" : "NULL AS created_at"},updated_at FROM threads WHERE ${eligible} AND id > ? ORDER BY id LIMIT ?`);

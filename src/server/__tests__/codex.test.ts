@@ -87,6 +87,16 @@ describe("Codex CLI membership", () => {
     expect(matchCliSessions([cli()], [thread({ source: "vscode", originator: "codex-desktop" })]).threads).toEqual([]);
     expect(matchCliSessions([cli()], [tui, thread({ id: "second", source: "vscode", originator: "codex-tui" })]).threads).toEqual([]);
   });
+  test("matches a daemon-backed code-mode thread persisted as codex_hermes_monitor", () => {
+    const hermes = thread({ source: "vscode", originator: "codex_hermes_monitor" });
+    const stale = [thread({ id: "old-1", source: "vscode", originator: "codex-tui" }), thread({ id: "old-2", source: "vscode", originator: "codex-tui" })];
+    const process = { ...cli(), daemonSessionIds: [id, "phantom"] };
+    const match = matchCliSessions([process], [hermes, ...stale]);
+    expect(match.threads.map(row => row.id)).toEqual([id]);
+    expect(match.diagnostics).toEqual([]);
+    // Without the daemon-held lock nothing ties the terminal to the hermes thread.
+    expect(matchCliSessions([cli()], [hermes, ...stale]).threads).toEqual([]);
+  });
   test("excludes daemons, exec, other programs and processes without a terminal", () => {
     const ps = "10 ttys001 /opt/bin/codex --model test\n11 ?? /opt/bin/codex app-server\n12 ttys002 /opt/bin/codex exec hi\n13 ttys003 /opt/bin/opencode\n14 ttys004 /opt/bin/codex resume --last\n15 ttys005 /opt/bin/codex --config x=y mcp-server\n";
     expect(parseCliProcesses(ps)).toEqual(["10", "14"]);
@@ -244,6 +254,19 @@ describe("Codex storage and adapter", () => {
     db.close();
     const adapter = new CodexAdapter(dir); adapter.setProcesses([cli()]);
     expect(adapter.cards(t)).toMatchObject([{ session_id: `codex:${id}`, source: "codex", title: "Daemon TUI", column: "running" }]);
+    expect(adapter.diagnostics).toEqual([]);
+    adapter.close();
+  });
+  test("shows a working code-mode daemon session persisted as codex_hermes_monitor", () => {
+    const dir = temp(); const { db } = database(dir);
+    db.exec("ALTER TABLE threads ADD COLUMN originator TEXT");
+    const rollout = join(dir, "session.jsonl");
+    writeFileSync(rollout, event("event_msg", { type: "task_started" }));
+    db.query("INSERT INTO threads VALUES (?,?,?,?,?,?,?,?,?)").run(id, "/project", "Code mode task", "vscode", rollout, t / 1000, 0, "actual-model", "codex_hermes_monitor");
+    db.query("INSERT INTO threads VALUES (?,?,?,?,?,?,?,?,?)").run("stale", "/project", "Stale TUI", "vscode", rollout, t / 1000, 0, null, "codex-tui");
+    db.close();
+    const adapter = new CodexAdapter(dir); adapter.setProcesses([{ ...cli(), daemonSessionIds: [id] }]);
+    expect(adapter.cards(t)).toMatchObject([{ session_id: `codex:${id}`, source: "codex", title: "Code mode task", column: "running" }]);
     expect(adapter.diagnostics).toEqual([]);
     adapter.close();
   });
