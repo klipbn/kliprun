@@ -1,9 +1,10 @@
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import type { CardPayload, SessionDetailPayload } from "@shared/types";
 import { scrub } from "../security";
 import { branchOf } from "../vcs";
 import { matchCliSessions, type CliProcess } from "./liveness";
-import { RolloutReader } from "./rollout";
+import { RolloutReader, type RolloutState } from "./rollout";
+import { codexHermesHome, readHermesStatuses, type HermesStatus } from "./hermes";
 import { codexHome, CodexStorage, type CodexThread } from "./storage";
 
 export class CodexAdapter {
@@ -11,15 +12,16 @@ export class CodexAdapter {
   private processes: CliProcess[] = [];
   private readers = new Map<string, RolloutReader>();
   private threads = new Map<string, CodexThread>();
+  private statuses = new Map<string, Pick<RolloutState, "column" | "since" | "turnId">>();
   diagnostics: string[] = [];
 
-  constructor(home = codexHome()) { this.storage = new CodexStorage(home); }
+  constructor(home = codexHome(), private readonly hermesHome = codexHermesHome()) { this.storage = new CodexStorage(home); }
 
   setProcesses(processes: CliProcess[]): void { this.processes = processes; }
 
   cards(now: number): CardPayload[] {
     this.diagnostics = [];
-    if (!this.processes.length) { this.threads.clear(); this.readers.clear(); return []; }
+    if (!this.processes.length) { this.threads.clear(); this.readers.clear(); this.statuses.clear(); return []; }
     try {
       const match = matchCliSessions(this.processes, this.storage.candidates(this.processes));
       this.diagnostics = match.diagnostics;
@@ -28,17 +30,33 @@ export class CodexAdapter {
       this.diagnostics = ["Codex database unavailable or incompatible; CLI sessions cannot be matched"];
       this.threads.clear();
     }
-    for (const id of this.readers.keys()) if (!this.threads.has(id)) this.readers.delete(id);
-    return [...this.threads.values()].map(row => this.card(row, now));
+    for (const id of this.readers.keys()) if (!this.threads.has(id)) { this.readers.delete(id); this.statuses.delete(id); }
+    const threads = [...this.threads.values()];
+    const hermes = readHermesStatuses(this.hermesHome, threads, now);
+    return threads.map(row => this.card(row, now, hermes.get(row.id)));
   }
 
-  private card(row: CodexThread, now: number): CardPayload {
+  private card(row: CodexThread, now: number, hermes?: HermesStatus): CardPayload {
     let reader = this.readers.get(row.id);
     if (!reader) { reader = new RolloutReader(); this.readers.set(row.id, reader); }
-    let state;
+    let state: RolloutState | undefined;
     try { state = reader.read(row.rollout_path, now); } catch {
       this.diagnostics.push(`Session ${row.id}: local journal unavailable`);
     }
+    const previous = this.statuses.get(row.id);
+    if (state && hermes && hermes.updatedAt >= state.lastEventAt &&
+      (!state.turnId || !hermes.turnId || state.turnId === hermes.turnId) &&
+      state.turnActive !== false &&
+      (hermes.daemon || (state.turnId !== null && state.turnId === hermes.turnId))) {
+      const column = hermes.status === "waiting" ? "attention" : "running";
+      const since = column === "attention" ? hermes.waitingSince!
+        : previous?.column === "running" && previous.turnId === state.turnId ? previous.since
+        : state.column === "running" && previous?.column !== "attention" ? state.since : hermes.updatedAt;
+      state = { ...state, column, stage: column === "attention" ? "Waiting for input" : "Working", since,
+        finishedAt: null, reason: null };
+    }
+    if (state) this.statuses.set(row.id, { column: state.column, since: state.since, turnId: state.turnId });
+    else this.statuses.delete(row.id);
     return {
       source: "codex", session_id: `codex:${row.id}`, directory: scrub(row.cwd), directory_name: scrub(basename(row.cwd)),
       title: scrub(row.title).slice(0, 90), prompt_snippet: state?.prompt ?? null, parent_id: null, agent: { name: "Codex" },
@@ -67,7 +85,9 @@ export class CodexAdapter {
   }
 
   watchPaths(): string[] {
-    return [...(this.storage.path ? [this.storage.path, `${this.storage.path}-wal`] : []), ...[...this.threads.values()].map(row => row.rollout_path)];
+    return [...(this.storage.path ? [this.storage.path, `${this.storage.path}-wal`] : []),
+      ...[...this.threads.values()].map(row => row.rollout_path),
+      ...(this.threads.size ? [join(this.hermesHome, "sessions")] : [])];
   }
 
   /** Current journal model, with only an explicitly persisted provider. */
@@ -77,5 +97,5 @@ export class CodexAdapter {
     return provider ? scrub(`${provider}/${card.model_ref}`) : card.model_ref;
   }
 
-  close(): void { this.storage.close(); this.threads.clear(); this.readers.clear(); }
+  close(): void { this.storage.close(); this.threads.clear(); this.readers.clear(); this.statuses.clear(); }
 }

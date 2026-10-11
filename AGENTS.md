@@ -29,6 +29,14 @@ Cards/details carry
 with neutral styling, never an invented completion. Codex subagents and MR
 extraction are out of scope for this adapter's first version.
 
+Codex waiting/busy status can also come from bounded reads of local
+codex-hermes files (`src/server/codex/hermes.ts`, `CODEX_HERMES_BASE_DIR`).
+Apply them only after CLI membership is established. Require a fresh watcher
+heartbeat and, for daemon records, fresh connected-daemon evidence; hooks
+require the same active journal turn. Newer journal events and confirmed
+turn endings take precedence. Invalid or stale evidence falls back to the
+journal. Preserve waiting/working transition times across heartbeat updates.
+
 ## Mandatory safety boundaries
 
 - Open `~/.local/share/opencode/opencode.db` **read-only** (`bun:sqlite`,
@@ -70,6 +78,8 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
 - `src/server/history.ts` — Kanban column intervals in KlipRun's own SQLite.
 - `src/server/boardService.ts` — board cache (TTL 1 s), rebuild orchestration,
   ETag, history recording, session detail.
+- `src/server/codex/hermes.ts` — read-only waiting/busy evidence from Hermes;
+  its sessions directory is watched for Codex board updates.
 - `src/server/usage/` — worker-based read-only history import, normalized
   request tokens, raw Running aggregation and statistics APIs. Import complete
   histories in bounded pages/chunks; do not use live detail/tail limits.

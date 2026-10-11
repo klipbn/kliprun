@@ -39,6 +39,9 @@ function tokenDifference(current: TokenSnapshot, previous: TokenSnapshot): Token
 }
 
 export interface RolloutState {
+  turnId: string | null;
+  /** null when the bounded journal has no confirmed start or end. */
+  turnActive: boolean | null;
   column: ColumnKey;
   stage: string;
   since: number;
@@ -62,8 +65,6 @@ export class RolloutReader {
   private mtime = 0;
   private partial = Buffer.alloc(0);
   private skipping = false;
-  private turn: string | null = null;
-  private active = false;
   private pending = new Map<string, { question: boolean; tool: ToolEntry }>();
   private state = this.empty();
   private limit: number | null = null;
@@ -73,7 +74,7 @@ export class RolloutReader {
   private modelUsage = new Map<string, ModelUsageSummary>();
 
   private empty(): RolloutState {
-    return { column: "idle", stage: "Status unknown", since: 0, startedAt: null, finishedAt: null,
+    return { turnId: null, turnActive: null, column: "idle", stage: "Status unknown", since: 0, startedAt: null, finishedAt: null,
       lastEventAt: 0, model: null, tokens: null, context: null, messages: [], models: [], lastTool: null, prompt: null,
       reason: "No confirmed turn status in the local journal" };
   }
@@ -100,7 +101,7 @@ export class RolloutReader {
       } finally { closeSync(fd); }
     }
     this.mtime = stat.mtimeMs;
-    const stale = this.active && this.state.column === "running" && now - this.state.lastEventAt > STALE_STREAM_MS;
+    const stale = this.state.turnActive && this.state.column === "running" && now - this.state.lastEventAt > STALE_STREAM_MS;
     if (stale) return { ...this.state, column: "idle", stage: "Status unknown", since: this.state.lastEventAt + STALE_STREAM_MS,
       finishedAt: null, reason: "No recent events; work or permission waiting cannot be confirmed" };
     return this.state;
@@ -108,7 +109,7 @@ export class RolloutReader {
 
   private reset(): void {
     this.offset = 0; this.partial = Buffer.alloc(0); this.skipping = false;
-    this.turn = null; this.active = false; this.pending.clear(); this.state = this.empty();
+    this.pending.clear(); this.state = this.empty();
     this.limit = null; this.used = null;
     this.previousUsage = null; this.truncatedHistory = false; this.modelUsage.clear();
   }
@@ -177,14 +178,14 @@ export class RolloutReader {
     }
     if (entry.type === "event_msg") {
       if (type === "task_started") {
-        this.turn = string(payload.turn_id); this.active = true; this.pending.clear();
+        this.state.turnId = string(payload.turn_id); this.state.turnActive = true; this.pending.clear();
         this.state.startedAt = at; this.state.finishedAt = null; this.state.lastTool = null;
         this.state.since = at;
         this.transition("running", "Working", at);
         this.limit = number(payload.model_context_window) ?? this.limit;
       } else if (["task_complete", "turn_aborted", "task_failed"].includes(type ?? "")) {
-        if (payload.turn_id && this.turn && payload.turn_id !== this.turn) return;
-        this.active = false;
+        if (payload.turn_id && this.state.turnId && payload.turn_id !== this.state.turnId) return;
+        this.state.turnActive = false;
         for (const { tool } of this.pending.values()) { tool.status = "unknown"; tool.ended = at; }
         this.pending.clear();
         this.state.finishedAt = type === "task_complete" ? at : null;
@@ -207,7 +208,7 @@ export class RolloutReader {
       } else if (["function_call", "custom_tool_call"].includes(type ?? "")) {
         const name = string(payload.name);
         const callId = string(payload.call_id);
-        if (name && callId && this.active) {
+        if (name && callId && this.state.turnActive) {
           const tool: ToolEntry = { tool: scrub(name), status: "running", started: at, ended: null, duration_ms: null, skill_name: null };
           const question = /(?:^|\.)request_user_input$/.test(name);
           this.pending.set(callId, { question, tool });
@@ -224,7 +225,7 @@ export class RolloutReader {
           pending.tool.status = "completed"; pending.tool.ended = at;
           pending.tool.duration_ms = Math.max(0, at - (pending.tool.started ?? at));
           this.pending.delete(callId);
-          if (this.active && ![...this.pending.values()].some(p => p.question)) this.transition("running", "Working", at);
+          if (this.state.turnActive && ![...this.pending.values()].some(p => p.question)) this.transition("running", "Working", at);
         }
       }
     }

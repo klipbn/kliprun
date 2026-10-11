@@ -75,6 +75,13 @@ sessions through open rollout/writer files or the shared app-server daemon
 (`codex-tui` / `codex_hermes_monitor` originators). Ambiguous matches are
 omitted, with reasons in `GET /api/health` → `codex_diagnostics`.
 
+Codex approvals and answer selections also use fresh local codex-hermes
+statuses for these matched sessions. KlipRun reads `watcher.json` and session
+files from `~/.cache/codex-hermes` (`CODEX_HERMES_BASE_DIR` overrides it).
+Without a valid, fresh Hermes status, classification uses the journal;
+approvals inside tool wrappers may then be unavailable. Codex APIs are never
+called, and waiting time is excluded from observed Running statistics.
+
 ## Configuration
 
 | Variable | Purpose | Default |
@@ -84,6 +91,7 @@ omitted, with reasons in `GET /api/health` → `codex_diagnostics`.
 | `KLIPRUN_BUN_HOME` | KlipRun state: history, usage index, logs | `~/.kliprun_bun` |
 | `KLIPRUN_BUN_MODELS` | Model catalog for context limits | `~/.cache/opencode/models.json` |
 | `KLIPRUN_BUN_CODEX_HOME` | Codex data directory (read-only) | `$CODEX_HOME` or `~/.codex` |
+| `CODEX_HERMES_BASE_DIR` | Codex Hermes status directory (read-only) | `~/.cache/codex-hermes` |
 
 ## Statistics notes
 
