@@ -25,7 +25,7 @@ export class Watcher extends EventEmitter {
   private dbWatcherTarget: string | null = null;
   private hermesWatcherTarget: string | null = null;
   private running = false;
-  private codexWatchers = new Map<string, { watcher: FSWatcher; ino: number }>();
+  private codexWatchers = new Map<string, { watcher: FSWatcher; ino: number; mtimeMs: number; size: number }>();
   private codexDebounce: Timer | null = null;
 
   constructor(dbPath?: string, hermesDir?: string, private readonly codexPaths: () => string[] = () => []) {
@@ -89,16 +89,24 @@ export class Watcher extends EventEmitter {
     const targets = new Set(this.codexPaths());
     for (const [path, entry] of this.codexWatchers) {
       let same = false;
-      try { same = targets.has(path) && statSync(path).ino === entry.ino; } catch { /* removed */ }
+      try {
+        const stat = statSync(path);
+        same = targets.has(path) && stat.ino === entry.ino;
+        // Native notifications can miss a write immediately after watch registration.
+        if (same && (stat.mtimeMs !== entry.mtimeMs || stat.size !== entry.size)) {
+          entry.mtimeMs = stat.mtimeMs; entry.size = stat.size;
+          this.emitDebounced("codex", WATCH_DEBOUNCE_MS);
+        }
+      } catch { /* removed */ }
       if (!same) { entry.watcher.close(); this.codexWatchers.delete(path); }
     }
     for (const path of targets) {
       if (this.codexWatchers.has(path)) continue;
       try {
-        const ino = statSync(path).ino;
+        const { ino, mtimeMs, size } = statSync(path);
         const watcher = watch(path, () => this.emitDebounced("codex", WATCH_DEBOUNCE_MS));
         watcher.on("error", () => { watcher.close(); this.codexWatchers.delete(path); });
-        this.codexWatchers.set(path, { watcher, ino });
+        this.codexWatchers.set(path, { watcher, ino, mtimeMs, size });
       } catch { /* polling discovers files that appear later */ }
     }
   }
