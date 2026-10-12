@@ -2,8 +2,9 @@
 
 ## Purpose
 
-KlipRun is a local, read-only Kanban board for observing OpenCode and Codex CLI sessions
-with a currently open TUI. It reads the OpenCode SQLite database directly
+KlipRun is a local, read-only monitor with Kanban, Statistics and Agent Office views
+for observing OpenCode and Codex CLI sessions with a currently open TUI.
+It reads the OpenCode SQLite database directly
 (read-only) and reacts to file changes; it never calls OpenCode APIs and never
 manages OpenCode processes.
 
@@ -25,7 +26,7 @@ the shared app-server. The TUI-originator allowlist lives in
 `src/server/codex/storage.ts` (`TUI_ORIGINATORS`); keep storage, liveness
 and the usage importer on the same predicate.
 Cards/details carry
-`source`; Codex IDs use `codex:<uuid>`. Unknown Codex status belongs in IDLE
+`source`; Codex IDs use `codex:<uuid>`. On the board, unknown Codex status belongs in IDLE
 with neutral styling, never an invented completion. Codex subagents and MR
 extraction are out of scope for this adapter's first version.
 For Codex titles, read `threads.name` when nonempty and fall back to
@@ -63,14 +64,16 @@ fs.watch opencode.db-wal (100ms debounce)  ──┐
 fs.watch ~/.cache/opencode-hermes/instances ─├─→ invalidate → SSE push + ETag poll
 3s loop: ps + lsof + Hermes parse           ─┘
                      │
-bun:sqlite (read-only) → Engine (classifier) → history → /api/board → React kanban
+bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Board + Office
 ```
 
 - `src/server/index.ts` — Hono bootstrap, CORS, static client serving, shutdown.
 - `src/server/storage/db.ts`, `queries.ts` — read-only SQLite access. All queries
   must stay bounded (LIMIT) and index-friendly.
 - `src/server/watcher.ts` — fs.watch on db/wal (preferring `-wal`) and the
-  Hermes instances directory; debounced `change` events with rebinding.
+  Hermes instances directory, plus Codex DB/WAL, rollouts and Hermes session
+  paths. The existing 100 ms rebind loop checks inode, mtime and size for Codex
+  targets to recover missed native notifications; reuse these metadata checks.
 - `src/server/liveness.ts` — TUI detection: `ps` + `lsof -d cwd` + Hermes
   heartbeats → open TUI directories, matched session ids, `waiting` sessions.
   Heartbeats older than 30 s are ignored.
@@ -107,6 +110,12 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
   (`active/total`, Bot icon), MR chips and a context-window progress bar
   (accent → warning ≥70% → error ≥90%). The status bar splits running cards
   into agents and subagents.
+- `src/client/src/App.tsx` — Board (`/`), Statistics (`/stats`) and Office
+  (`/office`) navigation, shared live board data and session details. Preserve
+  browser back/forward behavior and remembered Statistics query filters.
+- `src/client/src/office/` — pixel-art Office. Read `placement.ts` before
+  changing seating; `Office.tsx` owns room capacity, `Leaderboard.tsx` loads
+  usage, and `office.css` / `meeting-room.svg` define the room presentation.
 
 ## Key contracts
 
@@ -141,6 +150,40 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Re
   model/agent attribution. Filters select contributions inside task trees.
   Unknown dates enter all-history totals only; source costs show coverage.
 
+## Office presentation contracts
+
+- Render only current board cards and their visible descendants, each once.
+  Placement is client-only: badges and time counters use observed status;
+  classification, history and Running attribution use raw server observations.
+- Desktop room order is a 2×2 grid: Work / Idle above Meeting / Superwork.
+  Narrow screens use Work → Idle → Meeting → Superwork. Meeting and Superwork
+  have plain English headings without emoji or icons. Start empty rooms with
+  compact footprints rather than spanning both desktop rows.
+- Superwork requires Running with a known `running_since` older than one hour.
+  Attention sessions enter Meeting immediately; errors remain immediate.
+  Initial Idle sessions start in the lounge. Existing coworkers move there only
+  after five continuous seconds of client-observed Idle; resuming cancels that move.
+- Unknown status keeps an existing coworker's last known seat with a neutral
+  label; it establishes neither completion nor continued work. A new unknown
+  session starts in the lounge. Unknown snapshots do not confirm an Idle pause.
+- Reserve surviving seat numbers before assigning newcomers; reuse holes
+  without compacting neighbors. Keep room capacity at its observed high-water
+  mark for the current view, including initial active/unknown desk reservations.
+  Empty slots and stable scrollbar width prevent room and coworker jumps.
+  Keep coworker colors keyed by `session_id`, independent of sorting or status.
+- Labels show the session title and status duration above, and the recorded
+  model below; use explicit unknown/dash fallbacks. Timers tick every second.
+- Known Idle/error coworkers in the lounge raise a hand for an unread Idle
+  revision, using the shared Kanban read tracker. Opening their details on Board
+  or Office marks that revision read; a later completion becomes unread again.
+  Unknown status stays neutral. This review pose changes neither status nor room.
+- Leaderboard shows current session titles, models and nine full desktop rows.
+  Read all-history per-session totals through `/api/stats/office-usage`:
+  validated batches of at most 50 repeated `session` parameters, worker-side
+  indexed sums, refreshed every 30 s. Each subagent contributes its own usage
+  once. Board `tokens_total` is not accumulated consumption; preserve missing
+  and partial-data markers rather than substituting context tokens or zero.
+
 ## Configuration
 
 - `KLIPRUN_BUN_PORT` (default 8792; `--port` flag wins).
@@ -163,12 +206,19 @@ bun run dev                # server with --watch (port 8792)
 bun run dev:client         # Vite dev server (5173, proxies /api → 8792)
 bun run build              # build client into src/client/dist
 bun run start              # production server (serves built client)
-bun run test               # server, shared and statistics calendar/filter tests
+bun run test               # server, shared, statistics and Office tests
 bunx tsc -b                # typecheck (server + shared)
 ```
 
 - For logic changes, add a regression test first where practical
-  (see `src/server/__tests__/` and `src/shared/__tests__/`).
+  (see `src/server/__tests__/`, `src/shared/__tests__/` and
+  `src/client/src/office/__tests__/`).
 - For UI changes, keep the dark theme and verify in a browser on a real board
-  page.
+  page at desktop/mobile widths. Office checks include empty/occupied rooms,
+  short Idle and unknown transitions, newcomer/removal seating, and 0–2
+  Superwork coworkers. Verify reduced-motion behavior when changing animation.
+- README and public preview screenshots use **fictional** sessions, projects,
+  paths, messages and usage. Capture in an isolated browser context with every
+  API response overridden and unmatched API requests blocked; inspect the final
+  images for leaks or invalid values. Keep Office first in the README previews.
 - Do not claim a check passed unless you ran the command.

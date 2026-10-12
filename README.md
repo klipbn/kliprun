@@ -49,6 +49,8 @@ databases are opened read-only.
   amber indicator. The empty room keeps its furniture and stable height.
   The four rooms use a compact 2×2 layout: Work and Idle above Meeting room
   and Superwork, with the same reading order on narrow screens.
+  Unreviewed Idle coworkers raise a hand. Opening details in Office or Kanban
+  clears the shared read marker; a new completion raises the hand again.
 - Live updates over Server-Sent Events (~100 ms) with ETag polling fallback.
 
 ## Quick start

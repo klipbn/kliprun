@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2026-10-12
+
+### Added
+- Unreviewed Idle coworkers in the Office lounge raise a hand and keep their
+  eyes open. Opening their details restores the normal resting pose. The review
+  marker is shared with Kanban envelopes, persists across reloads, and becomes
+  unread again when the session completes another turn.
+- Known error coworkers also request review; unknown statuses remain neutral.
+  The review pose changes neither observed status nor room placement.
+
+### Fixed
+- Clicking an already-selected Idle session now marks a new completion as read
+  instead of returning early and leaving the review notification active.
+
+### Changed
+- Updated agent instructions to cover Office navigation, placement stability,
+  token ranking APIs, review poses, watcher recovery and fictional-only previews.
+- Refreshed all README screenshots using fictional data for this version,
+  showing the raised-hand review pose with Office still first.
+
 ## [0.9.4] - 2026-10-12
 
 ### Changed

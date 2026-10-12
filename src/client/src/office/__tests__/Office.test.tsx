@@ -1,9 +1,12 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { BoardPayload, CardPayload } from "../../../../shared/types";
+import { createReadTracker } from "../../../../shared/readTracker";
 import Office from "../Office";
 import { OfficeLeaderboard } from "../Leaderboard";
 import { updatePlacements } from "../placement";
+
+const readAll = () => true;
 
 function card(id: string, overrides: Partial<CardPayload> = {}): CardPayload {
   return {
@@ -28,7 +31,7 @@ function board(cards: CardPayload[]): BoardPayload {
 }
 
 test("office shows real sessions and active children with their observed states", () => {
-  const html = renderToStaticMarkup(<Office board={board([
+  const html = renderToStaticMarkup(<Office isRead={readAll} board={board([
     card("coder", { children: [card("helper", { parent_id: "coder" })] }),
     card("question", { column: "attention" }),
     card("rest", { column: "idle" }),
@@ -44,12 +47,12 @@ test("office shows real sessions and active children with their observed states"
 });
 
 test("office distinguishes loading from an empty live board", () => {
-  expect(renderToStaticMarkup(<Office board={null} onSelect={() => {}} />)).toContain("Loading office");
-  expect(renderToStaticMarkup(<Office board={board([])} onSelect={() => {}} />)).toContain("The office is quiet");
+  expect(renderToStaticMarkup(<Office isRead={readAll} board={null} onSelect={() => {}} />)).toContain("Loading office");
+  expect(renderToStaticMarkup(<Office isRead={readAll} board={board([])} onSelect={() => {}} />)).toContain("The office is quiet");
 });
 
 test("the empty waiting area is a persistent meeting room rather than an unoccupied help queue", () => {
-  const html = renderToStaticMarkup(<Office board={board([])} onSelect={() => {}} />);
+  const html = renderToStaticMarkup(<Office isRead={readAll} board={board([])} onSelect={() => {}} />);
   expect(html).toContain('aria-label="Meeting room"');
   expect(html).toContain('aria-label="Meeting room available"');
   expect(html).not.toContain("Human needed");
@@ -57,7 +60,7 @@ test("the empty waiting area is a persistent meeting room rather than an unoccup
 });
 
 test("a coworker with a question sits in the meeting room and requests input immediately", () => {
-  const html = renderToStaticMarkup(<Office board={board([card("question", { column: "attention", running_since: null })])} onSelect={() => {}} />);
+  const html = renderToStaticMarkup(<Office isRead={readAll} board={board([card("question", { column: "attention", running_since: null })])} onSelect={() => {}} />);
   const meeting = html.match(/<section[^>]*aria-label="Meeting room"[\s\S]*?<\/section>/)?.[0];
   expect(meeting).toBeDefined();
   expect(meeting).toContain('aria-label="Meeting needs your input"');
@@ -65,7 +68,7 @@ test("a coworker with a question sits in the meeting room and requests input imm
 });
 
 test("office rooms are independent peers in work, idle, meeting, superwork order with plain headings", () => {
-  const html = renderToStaticMarkup(<Office board={board([])} onSelect={() => {}} />);
+  const html = renderToStaticMarkup(<Office isRead={readAll} board={board([])} onSelect={() => {}} />);
   let depth = 0;
   const rooms: Array<{ name: string; depth: number }> = [];
   for (const match of html.matchAll(/<section\b[^>]*>|<\/section>/g)) {
@@ -84,7 +87,7 @@ test("office rooms are independent peers in work, idle, meeting, superwork order
 });
 
 test("a coworker keeps their color when their state and board position change", () => {
-  const render = (cards: CardPayload[]) => renderToStaticMarkup(<Office board={board(cards)} onSelect={() => {}} />);
+  const render = (cards: CardPayload[]) => renderToStaticMarkup(<Office isRead={readAll} board={board(cards)} onSelect={() => {}} />);
   const before = render([card("same"), card("other")]);
   const after = render([card("other"), card("same", { column: "attention" })]);
   const color = (html: string) => html.match(/data-session-id="same"[^>]*style="([^"]+)"/)?.[1];
@@ -95,7 +98,7 @@ test("a coworker keeps their color when their state and board position change", 
 
 test("only continuous running beyond one hour enters the superwork zone", () => {
   const now = 7_200_000;
-  const html = renderToStaticMarkup(<Office now={now} board={board([
+  const html = renderToStaticMarkup(<Office isRead={readAll} now={now} board={board([
     card("fresh", { running_since: now - 10_000 }),
     card("exact-hour", { running_since: now - 3_600_000 }),
     card("overtime", { running_since: now - 3_600_001 }),
@@ -115,13 +118,13 @@ test("only continuous running beyond one hour enters the superwork zone", () => 
 });
 
 test("the office keeps all three physical zones visible even without coworkers", () => {
-  const html = renderToStaticMarkup(<Office board={board([])} onSelect={() => {}} />);
+  const html = renderToStaticMarkup(<Office isRead={readAll} board={board([])} onSelect={() => {}} />);
   for (const zone of ["work", "lounge", "superwork"]) expect(html).toContain(`data-zone="${zone}"`);
 });
 
 test("the same running session moves after the hour boundary and leaves when it rests", () => {
   const live = board([card("traveler", { running_since: 1000 })]);
-  const render = (data: BoardPayload, now: number) => renderToStaticMarkup(<Office board={data} now={now} onSelect={() => {}} />);
+  const render = (data: BoardPayload, now: number) => renderToStaticMarkup(<Office isRead={readAll} board={data} now={now} onSelect={() => {}} />);
   expect(render(live, 3_601_000)).toContain('data-office-zone="work"');
   expect(render(live, 3_601_001)).toContain('data-office-zone="superwork"');
   const rested = board([card("traveler", { column: "idle", running_since: null })]);
@@ -129,7 +132,7 @@ test("the same running session moves after the hour boundary and leaves when it 
 });
 
 test("coworkers show their model and the time spent in their current state above their heads", () => {
-  const html = renderToStaticMarkup(<Office now={120_000} board={board([
+  const html = renderToStaticMarkup(<Office isRead={readAll} now={120_000} board={board([
     card("worker", { running_since: 60_000, model_ref: "openai/gpt-6.1" }),
     card("idle-timer", { column: "idle", running_since: null, stage_since: 30_000, finished_at: 10_000, model_ref: "anthropic/claude-opus" }),
     card("wait-timer", { column: "attention", running_since: null, stage_since: 110_000 }),
@@ -164,6 +167,33 @@ test("leaderboard ranks current coworkers by accumulated usage, not their contex
   expect(html).toContain("No data");
   expect(html).toContain("Partial data");
   expect(html).not.toContain("foreign");
+});
+
+test("unread idle coworkers ask for review and return to their normal resting pose after viewing", () => {
+  const tracker = createReadTracker(null);
+  const idle = card("review", { column: "idle", running_since: null, stage_since: 1000, finished_at: 1000 });
+  const render = (item = idle) => renderToStaticMarkup(<Office now={3000} board={board([item])} isRead={tracker.isRead} onSelect={() => {}} />);
+  const unread = render();
+  expect(unread).toContain('data-office-unread="true"');
+  expect(unread).toContain("Not viewed yet");
+  expect(unread).not.toContain('class="office-zzz"');
+  expect(unread).toContain('data-office-state="resting" data-office-zone="lounge"');
+  tracker.markRead(idle);
+  const viewed = render();
+  expect(viewed).toContain('data-office-unread="false"');
+  expect(viewed).toContain('class="office-zzz"');
+  expect(viewed).not.toContain("Not viewed yet");
+  const completedAgain = { ...idle, stage_since: 2000, finished_at: 2000 };
+  expect(render(completedAgain)).toContain('data-office-unread="true"');
+});
+
+test("unknown, working and waiting statuses do not gain an unread idle pose", () => {
+  for (const item of [card("active"), card("question", { column: "attention" }),
+    card("unknown", { source: "codex", column: "idle", stage: "Status unknown" })]) {
+    const html = renderToStaticMarkup(<Office now={3000} board={board([item])} isRead={() => false} onSelect={() => {}} />);
+    expect(html).toContain('data-office-unread="false"');
+    expect(html).not.toContain('data-office-unread="true"');
+  }
 });
 
 test("a brief idle snapshot keeps the coworker at their desk and resuming cancels the move", () => {

@@ -79,13 +79,10 @@ export default function App() {
 
   const select = useCallback(
     (id: string) => {
-      setSelectedId((prev) => {
-        if (prev === id) return prev;
-        // Opening details marks an IDLE card as read.
-        const card = board ? findCard(board, id) : null;
-        if (card) markRead(card as TrackedCard);
-        return id;
-      });
+      // A new idle completion needs marking even when its details are already selected.
+      const card = board ? findCard(board, id) : null;
+      if (card?.column === "idle") markRead(card);
+      setSelectedId(id);
     },
     [board, markRead],
   );
@@ -136,7 +133,7 @@ export default function App() {
 
       {page === "office" && <main className="office-view flex-1 min-h-0 flex">
         <Suspense fallback={<div className="flex-1 flex items-center justify-center text-text-secondary">Loading office…</div>}>
-          <Office board={board} now={now} onSelect={select} onBack={backToBoard} />
+          <Office board={board} now={now} isRead={isRead} onSelect={select} onBack={backToBoard} />
         </Suspense>
         {selectedId && <DetailsPanel sessionId={selectedId} onClose={() => setSelectedId(null)} />}
       </main>}

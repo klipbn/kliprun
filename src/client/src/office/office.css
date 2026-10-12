@@ -86,8 +86,11 @@
 .office-zone-superwork .office-mascot { filter: drop-shadow(0 0 7px #b880ff80); }
 .office-sparks { animation: office-blink .6s steps(2) infinite; }
 .office-waiting .office-arm-right { transform: rotate(-145deg); }
+.office-unread .office-arm-right { transform: rotate(-145deg) scaleY(2.2); }
+.office-unread .office-timer { border-color: #efd08188; }
 .office-bubble { animation: office-bob 1.8s ease-in-out infinite; }
 .office-resting .office-eyes { transform: scaleY(.3); transform-origin: 0 77px; }
+.office-unread .office-eyes { transform: none; }
 .office-resting .office-zzz { animation: office-bob 3s ease-in-out infinite; }
 .office-steam { animation: office-steam 3s ease-in-out infinite; }
 .office-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; padding: 15px 20px; border-top: 1px solid #354357; background: #1a2535; color: #a7b7cc; font: 11px ui-monospace, monospace; }
