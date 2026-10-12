@@ -11,15 +11,19 @@ databases are opened read-only.
 
 ## Preview
 
-**Kanban board**
+*All screenshots use fictional sessions, projects, messages and usage data.*
+
+**Agent Office** — `/office`
+
+![KlipRun Agent Office: Work, Idle and Superwork zones with a token leaderboard](docs/office.png)
+
+**Kanban board** — `/`
 
 ![KlipRun dashboard](docs/screenshot.png)
 
 **Usage statistics** — `/stats`
 
 ![KlipRun usage statistics](docs/statistics.png)
-
-*Demo data: fictional sessions, projects and messages.*
 
 ## Features
 
