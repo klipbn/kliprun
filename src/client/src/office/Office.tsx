@@ -4,7 +4,7 @@ import type { BoardPayload, CardPayload } from "@shared/types";
 import { formatDuration } from "@shared/format";
 import { colorFor, Mascot, modelName } from "./appearance";
 import { OfficeLeaderboard, useOfficeUsage } from "./Leaderboard";
-import { stateFor, updatePlacements, type OfficePlacement, type OfficeZone } from "./placement";
+import { stateFor, updatePlacements, type OfficeArea, type OfficePlacement, type OfficeZone } from "./placement";
 import "./office.css";
 
 const CAPTIONS = {
@@ -59,8 +59,22 @@ export default function Office({ board, onSelect, onBack, now = Date.now() }: {
     return result.sort((a, b) => a.session_id.localeCompare(b.session_id));
   }, [board]);
   const previousPlacements = useRef(new Map<string, OfficePlacement>());
+  const previousCapacity = useRef<Record<OfficeArea, number>>({ work: 0, waiting: 0, superwork: 0, lounge: 0 });
   const placements = useMemo(() => updatePlacements(previousPlacements.current, residents, now), [residents, now]);
-  useEffect(() => { previousPlacements.current = placements; }, [placements]);
+  const capacity = useMemo(() => {
+    const next = { ...previousCapacity.current };
+    // Unknown sessions may report activity on the next snapshot; reserve their desks now.
+    const potentialWorkers = residents.filter(card => {
+      const state = stateFor(card);
+      if (state === "resting" || state === "error") return false;
+      const last = previousPlacements.current.get(card.session_id);
+      return state !== "unknown" || !last || last.zone !== "lounge";
+    }).length;
+    next.work = Math.max(next.work, potentialWorkers);
+    for (const placement of placements.values()) next[placement.area] = Math.max(next[placement.area], placement.seat + 1);
+    return next;
+  }, [placements, residents]);
+  useEffect(() => { previousPlacements.current = placements; previousCapacity.current = capacity; }, [placements, capacity]);
   const { usage, pending, error } = useOfficeUsage(residents.map(card => card.session_id));
   const working = residents.filter(c => stateFor(c) === "working").length;
   const waiting = residents.filter(c => stateFor(c) === "waiting").length;
@@ -88,6 +102,20 @@ export default function Office({ board, onSelect, onBack, now = Date.now() }: {
     </button>;
   };
 
+  const renderSeats = (area: OfficeArea) => {
+    const occupants = new Map<number, CardPayload>();
+    for (const card of residents) {
+      const placement = placements.get(card.session_id)!;
+      if (placement.area === area) occupants.set(placement.seat, card);
+    }
+    return Array.from({ length: capacity[area] }, (_, seat) => {
+      const card = occupants.get(seat);
+      return <div className="office-seat" key={seat} aria-hidden={card ? undefined : true}>
+        {card && renderResident(card, placements.get(card.session_id)!.zone)}
+      </div>;
+    });
+  };
+
   return <section className="office-page" aria-label="Live agent office" data-testid="office-page">
     <div className="office-heading">
       <div><div className="office-eyebrow">KLIPRUN / AFTER HOURS DEPARTMENT</div>
@@ -108,21 +136,21 @@ export default function Office({ board, onSelect, onBack, now = Date.now() }: {
       <div className="office-floor">
         <section className="office-zone office-zone-work" data-zone="work" aria-label="Work zone">
           <div className="office-zone-heading"><h3>Work zone</h3><span>{zones.work.length} on task</span></div>
-          <div className="office-seats office-desks">{zones.work.filter(c => stateFor(c) !== "waiting").map(c => renderResident(c, "work"))}
-            {!zones.work.some(c => stateFor(c) !== "waiting") && <div className="office-vacant">Monitors are on. The team will be back soon.</div>}</div>
+          <div className="office-seats office-desks">{renderSeats("work")}
+            {!residents.some(c => placements.get(c.session_id)!.area === "work") && <div className="office-vacant">Monitors are on. The team will be back soon.</div>}</div>
           <div className="office-help-desk"><span className="office-help-sign">Human needed ↗</span>
-            <div className="office-waiting-line">{zones.work.filter(c => stateFor(c) === "waiting").map(c => renderResident(c, "work"))}
-              {!waiting && <span className="office-no-questions">No questions for now</span>}</div></div>
+            <div className="office-waiting-line">{renderSeats("waiting")}
+              {!residents.some(c => placements.get(c.session_id)!.area === "waiting") && <span className="office-no-questions">No questions for now</span>}</div></div>
         </section>
         <section className="office-zone office-zone-superwork" data-zone="superwork" aria-label="Superwork zone">
           <div className="office-zone-heading"><h3>⚡ Superwork</h3><span>{zones.superwork.length} in the flow</span></div>
           <div className="office-reactor" aria-hidden="true"><span /><span /><span /><small>FLOW CORE / 60+ MIN</small></div>
-          <div className="office-seats office-desks">{zones.superwork.map(c => renderResident(c, "superwork"))}</div>
+          <div className="office-seats office-desks">{renderSeats("superwork")}</div>
         </section>
         <section className="office-zone office-zone-lounge" data-zone="lounge" aria-label="Idle zone">
           <div className="office-zone-heading"><h3>Idle zone</h3><span>{zones.lounge.length} on a break</span></div>
           <div className="office-coffee-corner" aria-hidden="true"><div className="office-coffee-machine"><span />☕</div><small>COFFEE.exe</small></div>
-          <div className="office-seats office-sofas">{zones.lounge.map(c => renderResident(c, "lounge"))}
+          <div className="office-seats office-sofas">{renderSeats("lounge")}
             {!zones.lounge.length && <div className="office-vacant">The couch is free. So are the cookies.</div>}</div>
         </section>
       </div>

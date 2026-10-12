@@ -42,6 +42,9 @@ databases are opened read-only.
   accumulated usage, counting each subagent separately without duplication.
   Short Idle transitions get a five-second grace period before coworkers move
   to the lounge; status labels stay live and questions or errors appear immediately.
+  Seats stay fixed when neighbors move; an unknown status keeps the last known
+  seat and displays a neutral label instead of implying that work finished.
+  The desktop Leaderboard shows nine complete entries before scrolling.
 - Live updates over Server-Sent Events (~100 ms) with ETag polling fallback.
 
 ## Quick start

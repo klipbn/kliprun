@@ -1,5 +1,5 @@
 .office-view { position: relative; }
-.office-page { flex: 1; min-width: 0; overflow: auto; padding: 30px clamp(16px, 4vw, 56px) 16px; background: radial-gradient(ellipse at top, #17233366, transparent 65%), #0d1117; }
+.office-page { flex: 1; min-width: 0; overflow: auto; scrollbar-gutter: stable; padding: 30px clamp(16px, 4vw, 56px) 16px; background: radial-gradient(ellipse at top, #17233366, transparent 65%), #0d1117; }
 .office-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; max-width: 1600px; margin: 0 auto 25px; }
 .office-eyebrow { color: #93a2b7; font: 10px ui-monospace, monospace; letter-spacing: 2px; margin-bottom: 10px; }
 .office-heading h2 { font-size: clamp(21px, 2.5vw, 32px); font-weight: 650; letter-spacing: -.8px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -29,14 +29,15 @@
 .office-zone-heading > span { color: #92a3bc; font: 10px ui-monospace, monospace; }
 .office-zone-superwork h3, .office-zone-superwork .office-zone-heading > span { color: #d5b3fa; }
 .office-zone-lounge h3 { color: #b2dac8; }
-.office-seats { position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); grid-auto-rows: 190px; min-height: 190px; }
+.office-seats { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); grid-auto-rows: 190px; min-height: 190px; }
+.office-seat { min-width: 0; height: 190px; }
 .office-desks { background: repeating-linear-gradient(to bottom, transparent 0 118px, #b88c6b 118px 126px, #7c5c4c 126px 132px, transparent 132px 190px); }
 .office-desks::before, .office-desks::after { content: ''; position: absolute; top: 132px; bottom: 28px; width: 7px; background: #7c5c4c; }
 .office-desks::before { left: 10px; }.office-desks::after { right: 10px; }
 .office-sofas { background: repeating-linear-gradient(to bottom, transparent 0 96px, #5c7a72 96px 117px, #78958b 117px 129px, #4d685e 129px 143px, transparent 143px 190px); }
 .office-sofas::before, .office-sofas::after { content: ''; position: absolute; top: 111px; width: 10px; height: 26px; background: #9aafa2; box-shadow: 0 25px 0 -3px #182b2b; }
 .office-sofas::before { left: 0; }.office-sofas::after { right: 0; }
-.office-resident { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; height: 190px; padding: 0 4px; border: 0; background: none; color: #dce4ef; }
+.office-resident { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; min-width: 0; height: 190px; padding: 0 4px; border: 0; background: none; color: #dce4ef; }
 .office-resident:hover .office-mascot { filter: drop-shadow(0 0 5px var(--resident-color)); }
 .office-resident:focus-visible { outline: 2px dashed var(--resident-color); outline-offset: -4px; }
 .office-back:focus-visible { outline: 2px solid #58a6ff; outline-offset: -3px; }
@@ -54,12 +55,12 @@
 .office-tooltip strong { color: #e4edf7; font-weight: 600; }
 .office-tooltip span { display: block; margin-top: 4px; }
 .office-resident:hover .office-tooltip, .office-resident:focus-visible .office-tooltip { display: block; }
-.office-vacant { grid-column: 1 / -1; align-self: end; text-align: center; color: #93a4b9; font: 10px ui-monospace, monospace; padding: 20px 4px; }
+.office-vacant { position: absolute; bottom: 20px; left: 4px; right: 4px; text-align: center; color: #93a4b9; font: 10px ui-monospace, monospace; }
 .office-help-desk { margin-top: 12px; padding-top: 12px; border-top: 2px dashed #70809950; }
 .office-help-sign { color: #efd081; font: 10px ui-monospace, monospace; }
-.office-waiting-line { display: flex; flex-wrap: wrap; align-items: center; min-height: 40px; }
-.office-waiting-line .office-resident { width: 145px; height: 178px; }
-.office-no-questions { color: #8294ad; font-size: 10px; }
+.office-waiting-line { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); grid-auto-rows: 178px; min-height: 178px; }
+.office-waiting-line .office-seat, .office-waiting-line .office-resident { height: 178px; }
+.office-no-questions { position: absolute; top: 10px; left: 0; color: #8294ad; font-size: 10px; }
 .office-reactor { position: relative; display: flex; align-items: end; justify-content: center; gap: 6px; height: 96px; margin: 14px auto 25px; border-bottom: 8px solid #1f2035; background: radial-gradient(ellipse at bottom, #b880ff20, transparent 70%); }
 .office-reactor > span { height: 58px; width: 32px; border: 5px solid #1d2335; background: repeating-linear-gradient(0deg, #b595dc 0 4px, #4d4467 4px 12px); box-shadow: 0 0 12px #b880ff30; }
 .office-reactor > span:nth-child(2) { height: 77px; width: 42px; background: repeating-linear-gradient(0deg, #e9c36e 0 4px, #615443 4px 12px); }
@@ -92,8 +93,9 @@
 .office-leaderboard-header { display: flex; align-items: center; gap: 9px; padding: 18px 12px 8px; }
 .office-leaderboard-header svg { width: 24px; height: 24px; flex-shrink: 0; }
 .office-leaderboard-header h3 { color: #efd081; font: bold 15px ui-monospace, monospace; letter-spacing: -.5px; }
-.office-leaderboard-list { padding: 0 6px 6px; max-height: 480px; overflow: auto; }
-.office-leaderboard-list button { display: flex; width: 100%; align-items: center; gap: 7px; text-align: left; padding: 12px 5px; border-top: 1px dashed #354357; }
+.office-leaderboard-list { --leaderboard-row-height: 90px; padding: 0 6px 6px; max-height: calc(9 * var(--leaderboard-row-height) + 6px); overflow: auto; }
+.office-leaderboard-list li { height: var(--leaderboard-row-height); }
+.office-leaderboard-list button { display: flex; width: 100%; height: 100%; align-items: center; gap: 7px; text-align: left; padding: 12px 5px; border-top: 1px dashed #354357; }
 .office-leaderboard-list button:hover, .office-leaderboard-list button:focus-visible { background: #29364a; outline: 1px solid var(--resident-color); outline-offset: -1px; }
 .office-leaderboard-rank { flex-shrink: 0; color: #8294ad; font: 10px ui-monospace, monospace; width: 16px; }
 .office-leaderboard-list li:first-child .office-leaderboard-rank { color: #efd081; }

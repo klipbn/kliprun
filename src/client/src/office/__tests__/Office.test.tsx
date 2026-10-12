@@ -152,13 +152,13 @@ test("idle placement waits five observed seconds even when server stage timestam
   expect(placement.get("busy")!.zone).toBe("lounge");
 });
 
-test("superwork keeps its seat during idle grace but questions, errors and unknown statuses act immediately", () => {
+test("superwork keeps its seat during idle grace; questions and errors relocate immediately but unknown does not", () => {
   const initial = updatePlacements(new Map(), [card("busy")], 4_000_000);
   const idle = updatePlacements(initial, [card("busy", { column: "idle", running_since: null })], 4_001_000);
   expect(idle.get("busy")!.zone).toBe("superwork");
   expect(updatePlacements(idle, [card("busy", { column: "attention" })], 4_002_000).get("busy")!.zone).toBe("work");
   expect(updatePlacements(idle, [card("busy", { column: "idle", error: "failure" })], 4_002_000).get("busy")!.zone).toBe("lounge");
-  expect(updatePlacements(idle, [card("busy", { source: "codex", column: "idle", stage: "Status unknown" })], 4_002_000).get("busy")!.zone).toBe("lounge");
+  expect(updatePlacements(idle, [card("busy", { source: "codex", column: "idle", stage: "Status unknown" })], 4_002_000).get("busy")!.zone).toBe("superwork");
 });
 
 test("initial idle sessions appear in the lounge and removed sessions do not retain placement history", () => {
@@ -167,4 +167,37 @@ test("initial idle sessions appear in the lounge and removed sessions do not ret
   expect(placement.size).toBe(0);
   placement = updatePlacements(placement, [card("gone", { column: "idle", running_since: null })], 102_000);
   expect(placement.get("gone")!.zone).toBe("lounge");
+});
+
+test("unknown snapshots keep the last observed area without confirming idle or inventing work", () => {
+  const unknown = card("busy", { source: "codex", column: "idle", stage: "Status unknown", running_since: null });
+  let placement = updatePlacements(new Map(), [card("busy")], 100_000);
+  placement = updatePlacements(placement, [unknown], 101_000);
+  placement = updatePlacements(placement, [unknown], 120_000);
+  expect(placement.get("busy")!.zone).toBe("work");
+  expect(placement.get("busy")!.idleSince).toBeNull();
+  placement = updatePlacements(placement, [card("busy", { column: "idle", running_since: null })], 121_000);
+  expect(placement.get("busy")!.zone).toBe("work");
+  expect(updatePlacements(new Map(), [unknown], 121_000).get("busy")!.zone).toBe("lounge");
+});
+
+test("new coworkers cannot displace already seated coworkers even when sorted before them", () => {
+  let placement = updatePlacements(new Map(), [card("b"), card("c")], 100_000);
+  expect(placement.get("b")!.seat).toBe(0);
+  expect(placement.get("c")!.seat).toBe(1);
+  placement = updatePlacements(placement, [card("a"), card("b"), card("c")], 101_000);
+  expect(placement.get("b")!.seat).toBe(0);
+  expect(placement.get("c")!.seat).toBe(1);
+  expect(placement.get("a")!.seat).toBe(2);
+});
+
+test("moving or removing one coworker leaves holes instead of compacting neighbors", () => {
+  let placement = updatePlacements(new Map(), [card("a"), card("b"), card("c")], 100_000);
+  placement = updatePlacements(placement, [card("b", { column: "attention" }), card("c")], 101_000);
+  expect(placement.get("c")!.seat).toBe(2);
+  expect(placement.get("c")!.area).toBe("work");
+  expect(placement.get("b")!.area).toBe("waiting");
+  placement = updatePlacements(placement, [card("c"), card("d")], 102_000);
+  expect(placement.get("c")!.seat).toBe(2);
+  expect(placement.get("d")!.seat).toBe(0);
 });

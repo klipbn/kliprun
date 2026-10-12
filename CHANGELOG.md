@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-10-12
+
+### Changed
+- The desktop Office Leaderboard now fits nine complete entries before
+  scrolling, including session names, model labels and token totals.
+
+### Fixed
+- Office keeps the last known seat when Codex temporarily reports an unknown
+  status. The neutral status label updates immediately; missing evidence does
+  not imply either completion or continued work.
+- Coworkers keep stable seat numbers when neighbors move, disappear or arrive.
+  Empty seats remain reserved, grid columns no longer collapse, and room rows
+  do not shrink during the current Office view. A reserved scrollbar gutter
+  prevents layout shifts when scrolling becomes necessary.
+- Initial active or unknown sessions reserve enough work desks before their
+  status settles, preventing their recovery from pushing the lounge downward.
+
 ## [0.9.1] - 2026-10-12
 
 ### Fixed
