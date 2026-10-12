@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { BoardPayload, CardPayload } from "../../../../shared/types";
 import Office from "../Office";
 import { OfficeLeaderboard } from "../Leaderboard";
+import { updatePlacements } from "../placement";
 
 function card(id: string, overrides: Partial<CardPayload> = {}): CardPayload {
   return {
@@ -128,4 +129,42 @@ test("leaderboard ranks current coworkers by accumulated usage, not their contex
   expect(html).toContain("No data");
   expect(html).toContain("Partial data");
   expect(html).not.toContain("foreign");
+});
+
+test("a brief idle snapshot keeps the coworker at their desk and resuming cancels the move", () => {
+  let placement = updatePlacements(new Map(), [card("busy")], 100_000);
+  placement = updatePlacements(placement, [card("busy", { column: "idle", running_since: null })], 101_000);
+  expect(placement.get("busy")!.zone).toBe("work");
+  placement = updatePlacements(placement, [card("busy")], 102_000);
+  placement = updatePlacements(placement, [card("busy", { column: "idle", running_since: null })], 105_000);
+  placement = updatePlacements(placement, [card("busy", { column: "idle", running_since: null })], 109_999);
+  expect(placement.get("busy")!.zone).toBe("work");
+  placement = updatePlacements(placement, [card("busy", { column: "idle", running_since: null })], 110_000);
+  expect(placement.get("busy")!.zone).toBe("lounge");
+});
+
+test("idle placement waits five observed seconds even when server stage timestamps are old or change", () => {
+  let placement = updatePlacements(new Map(), [card("busy")], 100_000);
+  placement = updatePlacements(placement, [card("busy", { column: "idle", running_since: null, stage_since: 1 })], 101_000);
+  placement = updatePlacements(placement, [card("busy", { column: "idle", running_since: null, stage_since: 105_000 })], 105_999);
+  expect(placement.get("busy")!.zone).toBe("work");
+  placement = updatePlacements(placement, [card("busy", { column: "idle", running_since: null })], 106_000);
+  expect(placement.get("busy")!.zone).toBe("lounge");
+});
+
+test("superwork keeps its seat during idle grace but questions, errors and unknown statuses act immediately", () => {
+  const initial = updatePlacements(new Map(), [card("busy")], 4_000_000);
+  const idle = updatePlacements(initial, [card("busy", { column: "idle", running_since: null })], 4_001_000);
+  expect(idle.get("busy")!.zone).toBe("superwork");
+  expect(updatePlacements(idle, [card("busy", { column: "attention" })], 4_002_000).get("busy")!.zone).toBe("work");
+  expect(updatePlacements(idle, [card("busy", { column: "idle", error: "failure" })], 4_002_000).get("busy")!.zone).toBe("lounge");
+  expect(updatePlacements(idle, [card("busy", { source: "codex", column: "idle", stage: "Status unknown" })], 4_002_000).get("busy")!.zone).toBe("lounge");
+});
+
+test("initial idle sessions appear in the lounge and removed sessions do not retain placement history", () => {
+  let placement = updatePlacements(new Map(), [card("gone")], 100_000);
+  placement = updatePlacements(placement, [], 101_000);
+  expect(placement.size).toBe(0);
+  placement = updatePlacements(placement, [card("gone", { column: "idle", running_since: null })], 102_000);
+  expect(placement.get("gone")!.zone).toBe("lounge");
 });

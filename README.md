@@ -40,6 +40,8 @@ databases are opened read-only.
   zones, with session names, models and status timers. Continuous Running over
   one hour unlocks Superwork. A token Leaderboard ranks current sessions by
   accumulated usage, counting each subagent separately without duplication.
+  Short Idle transitions get a five-second grace period before coworkers move
+  to the lounge; status labels stay live and questions or errors appear immediately.
 - Live updates over Server-Sent Events (~100 ms) with ETag polling fallback.
 
 ## Quick start

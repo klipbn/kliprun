@@ -1,33 +1,16 @@
-import { useMemo, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { ArrowLeft } from "lucide-react";
 import type { BoardPayload, CardPayload } from "@shared/types";
 import { formatDuration } from "@shared/format";
 import { colorFor, Mascot, modelName } from "./appearance";
 import { OfficeLeaderboard, useOfficeUsage } from "./Leaderboard";
+import { stateFor, updatePlacements, type OfficePlacement, type OfficeZone } from "./placement";
 import "./office.css";
-
-function stateFor(card: CardPayload) {
-  if (card.error) return "error";
-  if (card.source === "codex" && card.stage === "Status unknown") return "unknown";
-  if (card.column === "running") return "working";
-  if (card.column === "attention") return "waiting";
-  return "resting";
-}
 
 const CAPTIONS = {
   working: "Shipping tiny miracles", waiting: "A human is required",
   resting: "On a coffee break", unknown: "Status unknown", error: "A little technical drama",
 };
-
-type OfficeZone = "work" | "lounge" | "superwork";
-
-function zoneFor(card: CardPayload, now: number): OfficeZone {
-  const state = stateFor(card);
-  if (state === "working") {
-    return card.running_since !== null && now - card.running_since > 3_600_000 ? "superwork" : "work";
-  }
-  return state === "waiting" ? "work" : "lounge";
-}
 
 function Workstation({ state, small, zone }: { state: ReturnType<typeof stateFor>; small: boolean; zone: OfficeZone }) {
   const atDesk = state === "working";
@@ -75,11 +58,14 @@ export default function Office({ board, onSelect, onBack, now = Date.now() }: {
     if (board) for (const key of ["running", "attention", "idle"] as const) visit(board.columns[key].cards);
     return result.sort((a, b) => a.session_id.localeCompare(b.session_id));
   }, [board]);
+  const previousPlacements = useRef(new Map<string, OfficePlacement>());
+  const placements = useMemo(() => updatePlacements(previousPlacements.current, residents, now), [residents, now]);
+  useEffect(() => { previousPlacements.current = placements; }, [placements]);
   const { usage, pending, error } = useOfficeUsage(residents.map(card => card.session_id));
   const working = residents.filter(c => stateFor(c) === "working").length;
   const waiting = residents.filter(c => stateFor(c) === "waiting").length;
   const zones: Record<OfficeZone, CardPayload[]> = { work: [], lounge: [], superwork: [] };
-  for (const card of residents) zones[zoneFor(card, now)].push(card);
+  for (const card of residents) zones[placements.get(card.session_id)!.zone].push(card);
 
   const renderResident = (card: CardPayload, zone: OfficeZone) => {
     const state = stateFor(card);
@@ -122,8 +108,8 @@ export default function Office({ board, onSelect, onBack, now = Date.now() }: {
       <div className="office-floor">
         <section className="office-zone office-zone-work" data-zone="work" aria-label="Work zone">
           <div className="office-zone-heading"><h3>Work zone</h3><span>{zones.work.length} on task</span></div>
-          <div className="office-seats office-desks">{zones.work.filter(c => stateFor(c) === "working").map(c => renderResident(c, "work"))}
-            {!zones.work.some(c => stateFor(c) === "working") && <div className="office-vacant">Monitors are on. The team will be back soon.</div>}</div>
+          <div className="office-seats office-desks">{zones.work.filter(c => stateFor(c) !== "waiting").map(c => renderResident(c, "work"))}
+            {!zones.work.some(c => stateFor(c) !== "waiting") && <div className="office-vacant">Monitors are on. The team will be back soon.</div>}</div>
           <div className="office-help-desk"><span className="office-help-sign">Human needed ↗</span>
             <div className="office-waiting-line">{zones.work.filter(c => stateFor(c) === "waiting").map(c => renderResident(c, "work"))}
               {!waiting && <span className="office-no-questions">No questions for now</span>}</div></div>

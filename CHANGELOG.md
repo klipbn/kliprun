@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-10-12
+
+### Fixed
+- Office coworkers keep their seats during short Idle transitions. Moving to
+  the Idle zone now requires five continuous seconds of observed Idle; resuming
+  work cancels the pending move, and timers advance the transition without
+  requiring another board update.
+- Status labels and time counters still show the current observed status.
+  Questions, errors and unknown statuses remain immediate; board classification
+  and usage statistics are not smoothed. Initial Idle sessions appear in the
+  lounge immediately, and placement history is discarded when sessions leave.
+
 ## [0.9.0] - 2026-10-12
 
 ### Added
