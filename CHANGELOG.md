@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-10-12
+
+### Changed
+- The Office waiting area is now a furnished pixel-art **Meeting room**, with
+  a shared conference table, chairs and a whiteboard. Coworkers waiting for
+  input gather there with their session titles, waiting timers and raised hands.
+- A confirmed question highlights the room and its indicator in amber. The
+  empty room retains its furniture instead of displaying the old help-queue
+  captions, and its height stays stable as coworkers enter and leave.
+- Refreshed README previews for Office, Kanban and Statistics using only
+  fictional sessions, projects, messages and usage data. Office remains first.
+
 ## [0.9.2] - 2026-10-12
 
 ### Changed

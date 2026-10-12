@@ -138,9 +138,17 @@ export default function Office({ board, onSelect, onBack, now = Date.now() }: {
           <div className="office-zone-heading"><h3>Work zone</h3><span>{zones.work.length} on task</span></div>
           <div className="office-seats office-desks">{renderSeats("work")}
             {!residents.some(c => placements.get(c.session_id)!.area === "work") && <div className="office-vacant">Monitors are on. The team will be back soon.</div>}</div>
-          <div className="office-help-desk"><span className="office-help-sign">Human needed ↗</span>
-            <div className="office-waiting-line">{renderSeats("waiting")}
-              {!residents.some(c => placements.get(c.session_id)!.area === "waiting") && <span className="office-no-questions">No questions for now</span>}</div></div>
+          <section className={`office-meeting-room${waiting > 0 ? " office-meeting-active" : ""}`} aria-label="Meeting room" data-testid="meeting-room">
+            <div className="office-meeting-header">
+              <h4><svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" shapeRendering="crispEdges" aria-hidden="true">
+                <path d="M3 8h14v5H3zM5 13h2v4H5zM13 13h2v4h-2zM2 3h4v3H2zM8 3h4v3H8zM14 3h4v3h-4z" />
+              </svg>Meeting room</h4>
+              <span className="office-meeting-indicator" role="status"
+                aria-label={waiting > 0 ? "Meeting needs your input" : "Meeting room available"}
+                title={waiting > 0 ? "Meeting needs your input" : "Meeting room available"} />
+            </div>
+            <div className="office-waiting-line">{renderSeats("waiting")}</div>
+          </section>
         </section>
         <section className="office-zone office-zone-superwork" data-zone="superwork" aria-label="Superwork zone">
           <div className="office-zone-heading"><h3>⚡ Superwork</h3><span>{zones.superwork.length} in the flow</span></div>

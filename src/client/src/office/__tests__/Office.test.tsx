@@ -48,6 +48,22 @@ test("office distinguishes loading from an empty live board", () => {
   expect(renderToStaticMarkup(<Office board={board([])} onSelect={() => {}} />)).toContain("The office is quiet");
 });
 
+test("the empty waiting area is a persistent meeting room rather than an unoccupied help queue", () => {
+  const html = renderToStaticMarkup(<Office board={board([])} onSelect={() => {}} />);
+  expect(html).toContain('aria-label="Meeting room"');
+  expect(html).toContain('aria-label="Meeting room available"');
+  expect(html).not.toContain("Human needed");
+  expect(html).not.toContain("No questions for now");
+});
+
+test("a coworker with a question sits in the meeting room and requests input immediately", () => {
+  const html = renderToStaticMarkup(<Office board={board([card("question", { column: "attention", running_since: null })])} onSelect={() => {}} />);
+  const meeting = html.match(/<section[^>]*aria-label="Meeting room"[\s\S]*?<\/section>/)?.[0];
+  expect(meeting).toBeDefined();
+  expect(meeting).toContain('aria-label="Meeting needs your input"');
+  expect(meeting).toContain('data-session-id="question" data-office-state="waiting"');
+});
+
 test("a coworker keeps their color when their state and board position change", () => {
   const render = (cards: CardPayload[]) => renderToStaticMarkup(<Office board={board(cards)} onSelect={() => {}} />);
   const before = render([card("same"), card("other")]);

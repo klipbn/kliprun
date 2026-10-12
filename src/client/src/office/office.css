@@ -56,11 +56,15 @@
 .office-tooltip span { display: block; margin-top: 4px; }
 .office-resident:hover .office-tooltip, .office-resident:focus-visible .office-tooltip { display: block; }
 .office-vacant { position: absolute; bottom: 20px; left: 4px; right: 4px; text-align: center; color: #93a4b9; font: 10px ui-monospace, monospace; }
-.office-help-desk { margin-top: 12px; padding-top: 12px; border-top: 2px dashed #70809950; }
-.office-help-sign { color: #efd081; font: 10px ui-monospace, monospace; }
-.office-waiting-line { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); grid-auto-rows: 178px; min-height: 178px; }
+.office-meeting-room { margin-top: 12px; padding: 10px; border: 2px solid #486271; border-radius: 4px; background: #1a2b3a; box-shadow: inset 0 0 0 2px #102232; }
+.office-meeting-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.office-meeting-header h4 { display: flex; align-items: center; gap: 6px; color: #aec7d4; font: 11px/16px ui-monospace, monospace; }
+.office-meeting-indicator { width: 6px; height: 6px; flex-shrink: 0; background: #607f89; }
+.office-meeting-active { border-color: #efd08199; box-shadow: inset 0 0 0 2px #efd08112, 0 0 12px #efd0810a; }
+.office-meeting-active .office-meeting-header h4 { color: #efd081; }
+.office-meeting-active .office-meeting-indicator { background: #efd081; box-shadow: 0 0 8px #efd08177; }
+.office-waiting-line { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); grid-auto-rows: 178px; min-height: 178px; background: url("./meeting-room.svg") 0 0 / 100% 178px repeat-y; }
 .office-waiting-line .office-seat, .office-waiting-line .office-resident { height: 178px; }
-.office-no-questions { position: absolute; top: 10px; left: 0; color: #8294ad; font-size: 10px; }
 .office-reactor { position: relative; display: flex; align-items: end; justify-content: center; gap: 6px; height: 96px; margin: 14px auto 25px; border-bottom: 8px solid #1f2035; background: radial-gradient(ellipse at bottom, #b880ff20, transparent 70%); }
 .office-reactor > span { height: 58px; width: 32px; border: 5px solid #1d2335; background: repeating-linear-gradient(0deg, #b595dc 0 4px, #4d4467 4px 12px); box-shadow: 0 0 12px #b880ff30; }
 .office-reactor > span:nth-child(2) { height: 77px; width: 42px; background: repeating-linear-gradient(0deg, #e9c36e 0 4px, #615443 4px 12px); }
