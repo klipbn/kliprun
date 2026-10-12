@@ -74,6 +74,8 @@ Codex cards share the same columns: terminal `codex` processes are matched to
 sessions through open rollout/writer files or the shared app-server daemon
 (`codex-tui` / `codex_hermes_monitor` originators). Ambiguous matches are
 omitted, with reasons in `GET /api/health` → `codex_diagnostics`.
+Cards, details and statistics use the current Codex session name when present;
+otherwise they show the original title.
 
 Codex approvals and answer selections also use fresh local codex-hermes
 statuses for these matched sessions. KlipRun reads `watcher.json` and session

@@ -66,6 +66,21 @@ describe("usage token normalization", () => {
 });
 
 describe("read-only history importer", () => {
+  test("imports the current Codex name and picks up a later rename", async () => {
+    const dir = temp(); const { db } = codexDatabase(dir); const sink = memorySink();
+    db.exec("ALTER TABLE threads ADD COLUMN name TEXT");
+    const rollout = join(dir, "session.jsonl");
+    db.query("INSERT INTO threads (id,cwd,title,source,rollout_path,created_at,updated_at,archived,model,model_provider,originator,name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run("cli", "/project", "Original prompt", "cli", rollout, at / 1000, at / 1000, 0, "final-model", "openai", null, "Current name");
+    writeFileSync(rollout, usage(counter(10, 8, 2)));
+    const importer = new UsageImporter({ opencodePath: join(dir, "missing"), codexHome: dir }, sink);
+    await importer.runOnce();
+    expect(sink.sessions.get("codex:cli")?.title).toBe("Current name");
+    db.query("UPDATE threads SET name = ? WHERE id = ?").run("Renamed again", "cli");
+    await importer.runOnce();
+    expect(sink.sessions.get("codex:cli")?.title).toBe("Renamed again");
+    db.close();
+  });
   test("imports archived OpenCode trees beyond the detail message limit and replaces changed messages", async () => {
     const dir = temp(); const { db, path } = opencodeDatabase(dir); const sink = memorySink();
     db.query("INSERT INTO session VALUES (?,?,?,?,?,?,?)").run("root", null, "/project", "Root", at, at, at);

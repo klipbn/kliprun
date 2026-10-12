@@ -28,6 +28,8 @@ Cards/details carry
 `source`; Codex IDs use `codex:<uuid>`. Unknown Codex status belongs in IDLE
 with neutral styling, never an invented completion. Codex subagents and MR
 extraction are out of scope for this adapter's first version.
+For Codex titles, read `threads.name` when nonempty and fall back to
+`threads.title`; apply this to live cards/details and historical usage imports.
 
 Codex waiting/busy status can also come from bounded reads of local
 codex-hermes files (`src/server/codex/hermes.ts`, `CODEX_HERMES_BASE_DIR`).

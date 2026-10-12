@@ -213,7 +213,8 @@ export class UsageImporter {
       let eligible = schema.has("originator") ? TUI_ORIGIN_SQL : "source = 'cli'";
       if (schema.has("parent_thread_id")) eligible += " AND parent_thread_id IS NULL";
       this.update("codex", { total: db.query<{ count: number }, []>(`SELECT COUNT(*) AS count FROM threads WHERE ${eligible}`).get()!.count });
-      const rows = db.query<CodexRow, [string, number]>(`SELECT id,cwd,title,rollout_path,${schema.has("created_at") ? "created_at" : "NULL AS created_at"},updated_at FROM threads WHERE ${eligible} AND id > ? ORDER BY id LIMIT ?`);
+      const title = schema.has("name") ? "COALESCE(NULLIF(TRIM(name), ''), title) AS title" : "title";
+      const rows = db.query<CodexRow, [string, number]>(`SELECT id,cwd,${title},rollout_path,${schema.has("created_at") ? "created_at" : "NULL AS created_at"},updated_at FROM threads WHERE ${eligible} AND id > ? ORDER BY id LIMIT ?`);
       let lastId = ""; let indexed = 0; let skipped = 0; let missing = 0;
       for (;;) {
         this.checkStopped();

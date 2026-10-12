@@ -227,6 +227,23 @@ function database(dir: string) {
 }
 
 describe("Codex storage and adapter", () => {
+  test("uses the current Codex name and refreshes it on the next board read", () => {
+    const dir = temp(); const { db } = database(dir);
+    db.exec("ALTER TABLE threads ADD COLUMN name TEXT");
+    const rollout = join(dir, "session.jsonl");
+    writeFileSync(rollout, event("event_msg", { type: "task_started" }));
+    db.query("INSERT INTO threads (id,cwd,title,source,rollout_path,updated_at,archived,model,name) VALUES (?,?,?,?,?,?,?,?,?)")
+      .run(id, "/project", "Original prompt", "cli", rollout, t / 1000, 0, null, "Current name");
+    const adapter = new CodexAdapter(dir); adapter.setProcesses([cli()]);
+    expect(adapter.cards(t)[0]?.title).toBe("Current name");
+    expect(adapter.detail(`codex:${id}`, t).title).toBe("Current name");
+    db.query("UPDATE threads SET name = ? WHERE id = ?").run("Renamed again", id);
+    expect(adapter.cards(t + 1)[0]?.title).toBe("Renamed again");
+    expect(adapter.detail(`codex:${id}`, t + 1).title).toBe("Renamed again");
+    db.query("UPDATE threads SET name = ? WHERE id = ?").run("", id);
+    expect(adapter.cards(t + 2)[0]?.title).toBe("Original prompt");
+    adapter.close(); db.close();
+  });
   test("loads a writer-referenced session even when it is outside the two historical candidates", () => {
     const dir = temp(); const { db } = database(dir);
     db.exec("ALTER TABLE threads ADD COLUMN originator TEXT");

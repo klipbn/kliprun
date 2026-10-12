@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-10-12
+
+### Fixed
+- Codex cards, session details and usage statistics now show the current
+  session name after it is renamed. Sessions without a name or using an older
+  Codex database schema continue to show their original title.
+
 ## [0.8.3] - 2026-10-11
 
 ### Fixed
