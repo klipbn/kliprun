@@ -19,10 +19,10 @@
 .office-clock span::after { content: ''; display: block; position: absolute; top: 10px; width: 10px; height: 3px; background: #354357; }
 .office-plant { position: absolute; right: 9%; bottom: 6px; color: #84b790; font-size: 43px; line-height: 1; text-shadow: -9px -2px #568665; }
 .office-plant span { display: block; background: #ba876d; width: 23px; height: 21px; margin: -5px auto 0; border-bottom: 4px solid #8b5d4d; }
-.office-floor { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); grid-template-areas: "work superwork" "lounge superwork"; background: repeating-linear-gradient(0deg, transparent 0 47px, #101b2b25 48px), repeating-linear-gradient(90deg, transparent 0 47px, #101b2b25 48px), #29364a; }
+.office-floor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "work lounge" "meeting superwork"; align-items: start; gap: 12px; background: #1a2535; }
 .office-zone { position: relative; min-width: 0; padding: 24px 28px 20px; }
-.office-zone-work { grid-area: work; border-bottom: 12px solid #1a2535; }
-.office-zone-superwork { grid-area: superwork; border-left: 12px solid #1a2535; background: repeating-linear-gradient(0deg, transparent 0 47px, #d5a6ff04 48px), #312d46; }
+.office-zone-work { grid-area: work; background: repeating-linear-gradient(0deg, transparent 0 47px, #101b2b25 48px), repeating-linear-gradient(90deg, transparent 0 47px, #101b2b25 48px), #29364a; }
+.office-zone-superwork { grid-area: superwork; background: repeating-linear-gradient(0deg, transparent 0 47px, #d5a6ff04 48px), #312d46; }
 .office-zone-lounge { grid-area: lounge; background: repeating-linear-gradient(90deg, transparent 0 47px, #8dd5ae05 48px), #293c3c; padding-right: 105px; }
 .office-zone-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .office-zone-heading h3 { font-size: 14px; font-weight: 650; color: #d6e3f5; }
@@ -56,19 +56,19 @@
 .office-tooltip span { display: block; margin-top: 4px; }
 .office-resident:hover .office-tooltip, .office-resident:focus-visible .office-tooltip { display: block; }
 .office-vacant { position: absolute; bottom: 20px; left: 4px; right: 4px; text-align: center; color: #93a4b9; font: 10px ui-monospace, monospace; }
-.office-meeting-room { margin-top: 12px; padding: 10px; border: 2px solid #486271; border-radius: 4px; background: #1a2b3a; box-shadow: inset 0 0 0 2px #102232; }
-.office-meeting-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.office-meeting-header h4 { display: flex; align-items: center; gap: 6px; color: #aec7d4; font: 11px/16px ui-monospace, monospace; }
+.office-meeting-room { grid-area: meeting; border: 2px solid #486271; background: #1a2b3a; box-shadow: inset 0 0 0 2px #102232; }
+.office-meeting-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+.office-meeting-header h3 { color: #aec7d4; font-size: 14px; line-height: 17px; font-weight: 650; }
 .office-meeting-indicator { width: 6px; height: 6px; flex-shrink: 0; background: #607f89; }
 .office-meeting-active { border-color: #efd08199; box-shadow: inset 0 0 0 2px #efd08112, 0 0 12px #efd0810a; }
-.office-meeting-active .office-meeting-header h4 { color: #efd081; }
+.office-meeting-active .office-meeting-header h3 { color: #efd081; }
 .office-meeting-active .office-meeting-indicator { background: #efd081; box-shadow: 0 0 8px #efd08177; }
 .office-waiting-line { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); grid-auto-rows: 178px; min-height: 178px; background: url("./meeting-room.svg") 0 0 / 100% 178px repeat-y; }
 .office-waiting-line .office-seat, .office-waiting-line .office-resident { height: 178px; }
-.office-reactor { position: relative; display: flex; align-items: end; justify-content: center; gap: 6px; height: 96px; margin: 14px auto 25px; border-bottom: 8px solid #1f2035; background: radial-gradient(ellipse at bottom, #b880ff20, transparent 70%); }
-.office-reactor > span { height: 58px; width: 32px; border: 5px solid #1d2335; background: repeating-linear-gradient(0deg, #b595dc 0 4px, #4d4467 4px 12px); box-shadow: 0 0 12px #b880ff30; }
-.office-reactor > span:nth-child(2) { height: 77px; width: 42px; background: repeating-linear-gradient(0deg, #e9c36e 0 4px, #615443 4px 12px); }
-.office-reactor small { position: absolute; bottom: -25px; font: 9px ui-monospace, monospace; color: #bd9fde; letter-spacing: 1px; }
+.office-reactor { position: absolute; right: 28px; top: 72px; display: flex; align-items: end; justify-content: center; gap: 4px; height: 52px; width: 80px; border-bottom: 6px solid #1f2035; background: radial-gradient(ellipse at bottom, #b880ff20, transparent 70%); pointer-events: none; }
+.office-reactor > span { height: 32px; width: 18px; border: 3px solid #1d2335; background: repeating-linear-gradient(0deg, #b595dc 0 3px, #4d4467 3px 9px); box-shadow: 0 0 12px #b880ff30; }
+.office-reactor > span:nth-child(2) { height: 42px; width: 22px; background: repeating-linear-gradient(0deg, #e9c36e 0 3px, #615443 3px 9px); }
+.office-reactor small { position: absolute; bottom: -18px; white-space: nowrap; font: 7px ui-monospace, monospace; color: #bd9fde; letter-spacing: .5px; }
 .office-coffee-corner { position: absolute; right: 18px; top: 88px; width: 68px; text-align: center; }
 .office-coffee-machine { position: relative; width: 55px; height: 66px; margin: auto; border: 6px solid #182b2b; background: #697d78; border-bottom: 12px solid #ad8462; padding-top: 14px; font-size: 20px; box-shadow: 0 8px 0 #182b2b; }
 .office-coffee-machine > span { position: absolute; right: 4px; top: 4px; width: 5px; height: 5px; background: #8dd5ae; }
@@ -118,6 +118,6 @@
 @media (max-width: 700px) { .office-view > aside { position: absolute; inset: 0; width: 100%; z-index: 10; background: #161e2a; } }
 .office-page { container-type: inline-size; }
 @container (max-width: 950px) { .office-layout { grid-template-columns: minmax(0, 1fr); }.office-leaderboard-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); max-height: 210px; } }
-@container (max-width: 750px) { .office-floor { grid-template-columns: minmax(0, 1fr); grid-template-areas: "work" "superwork" "lounge"; }.office-zone-superwork { border-left: 0; border-bottom: 12px solid #1a2535; }.office-zone { padding: 20px 18px; }.office-zone-lounge { padding-right: 100px; } }
+@container (max-width: 750px) { .office-floor { grid-template-columns: minmax(0, 1fr); grid-template-areas: "work" "lounge" "meeting" "superwork"; }.office-zone { padding: 20px 18px; }.office-zone-lounge { padding-right: 100px; }.office-reactor { right: 18px; } }
 @media (max-width: 600px) { .office-page { padding-top: 20px; }.office-wall { height: 120px; }.office-window { left: 5%; width: 70px; height: 73px; }.office-window-center { left: 50%; }.office-clock { right: 6%; }.office-plant { right: 5%; }.office-footer-note { margin-left: 0; }.office-tooltip { width: 145px; } }
 @media (prefers-reduced-motion: reduce) { .office-page *, .office-page *::after { animation: none !important; transition: none !important; } }

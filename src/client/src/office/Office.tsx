@@ -78,6 +78,7 @@ export default function Office({ board, onSelect, onBack, now = Date.now() }: {
   const { usage, pending, error } = useOfficeUsage(residents.map(card => card.session_id));
   const working = residents.filter(c => stateFor(c) === "working").length;
   const waiting = residents.filter(c => stateFor(c) === "waiting").length;
+  const atDesks = residents.filter(card => placements.get(card.session_id)!.area === "work").length;
   const zones: Record<OfficeZone, CardPayload[]> = { work: [], lounge: [], superwork: [] };
   for (const card of residents) zones[placements.get(card.session_id)!.zone].push(card);
 
@@ -135,31 +136,29 @@ export default function Office({ board, onSelect, onBack, now = Date.now() }: {
         <div className="office-empty"><h3>The office is quiet</h3><p>Open an OpenCode or Codex terminal session to bring a coworker in.</p></div> : null}
       <div className="office-floor">
         <section className="office-zone office-zone-work" data-zone="work" aria-label="Work zone">
-          <div className="office-zone-heading"><h3>Work zone</h3><span>{zones.work.length} on task</span></div>
+          <div className="office-zone-heading"><h3>Work zone</h3><span>{atDesks} at desks</span></div>
           <div className="office-seats office-desks">{renderSeats("work")}
             {!residents.some(c => placements.get(c.session_id)!.area === "work") && <div className="office-vacant">Monitors are on. The team will be back soon.</div>}</div>
-          <section className={`office-meeting-room${waiting > 0 ? " office-meeting-active" : ""}`} aria-label="Meeting room" data-testid="meeting-room">
-            <div className="office-meeting-header">
-              <h4><svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" shapeRendering="crispEdges" aria-hidden="true">
-                <path d="M3 8h14v5H3zM5 13h2v4H5zM13 13h2v4h-2zM2 3h4v3H2zM8 3h4v3H8zM14 3h4v3h-4z" />
-              </svg>Meeting room</h4>
-              <span className="office-meeting-indicator" role="status"
-                aria-label={waiting > 0 ? "Meeting needs your input" : "Meeting room available"}
-                title={waiting > 0 ? "Meeting needs your input" : "Meeting room available"} />
-            </div>
-            <div className="office-waiting-line">{renderSeats("waiting")}</div>
-          </section>
-        </section>
-        <section className="office-zone office-zone-superwork" data-zone="superwork" aria-label="Superwork zone">
-          <div className="office-zone-heading"><h3>⚡ Superwork</h3><span>{zones.superwork.length} in the flow</span></div>
-          <div className="office-reactor" aria-hidden="true"><span /><span /><span /><small>FLOW CORE / 60+ MIN</small></div>
-          <div className="office-seats office-desks">{renderSeats("superwork")}</div>
         </section>
         <section className="office-zone office-zone-lounge" data-zone="lounge" aria-label="Idle zone">
           <div className="office-zone-heading"><h3>Idle zone</h3><span>{zones.lounge.length} on a break</span></div>
           <div className="office-coffee-corner" aria-hidden="true"><div className="office-coffee-machine"><span />☕</div><small>COFFEE.exe</small></div>
           <div className="office-seats office-sofas">{renderSeats("lounge")}
             {!zones.lounge.length && <div className="office-vacant">The couch is free. So are the cookies.</div>}</div>
+        </section>
+        <section className={`office-zone office-meeting-room${waiting > 0 ? " office-meeting-active" : ""}`} data-zone="meeting" aria-label="Meeting room" data-testid="meeting-room">
+          <div className="office-meeting-header">
+            <h3>Meeting room</h3>
+            <span className="office-meeting-indicator" role="status"
+              aria-label={waiting > 0 ? "Meeting needs your input" : "Meeting room available"}
+              title={waiting > 0 ? "Meeting needs your input" : "Meeting room available"} />
+          </div>
+          <div className="office-waiting-line">{renderSeats("waiting")}</div>
+        </section>
+        <section className="office-zone office-zone-superwork" data-zone="superwork" aria-label="Superwork zone">
+          <div className="office-zone-heading"><h3>Superwork</h3><span>{zones.superwork.length} in the flow</span></div>
+          <div className="office-reactor" aria-hidden="true"><span /><span /><span /><small>FLOW CORE / 60+ MIN</small></div>
+          <div className="office-seats office-desks">{renderSeats("superwork")}</div>
         </section>
       </div>
       <div className="office-footer"><span><i className="office-dot-working" />{working} working</span><span><i className="office-dot-waiting" />{waiting} waiting for you</span>

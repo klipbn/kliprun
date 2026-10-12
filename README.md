@@ -15,7 +15,7 @@ databases are opened read-only.
 
 **Agent Office** — `/office`
 
-![KlipRun Agent Office: work zones, a meeting room and token leaderboard](docs/office.png)
+![KlipRun Agent Office: four rooms in a two-by-two layout and token leaderboard](docs/office.png)
 
 **Kanban board** — `/`
 
@@ -47,6 +47,8 @@ databases are opened read-only.
   The desktop Leaderboard shows nine complete entries before scrolling.
   Coworkers waiting for input gather in a furnished **Meeting room** with an
   amber indicator. The empty room keeps its furniture and stable height.
+  The four rooms use a compact 2×2 layout: Work and Idle above Meeting room
+  and Superwork, with the same reading order on narrow screens.
 - Live updates over Server-Sent Events (~100 ms) with ETag polling fallback.
 
 ## Quick start

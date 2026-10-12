@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-10-12
+
+### Changed
+- Office now uses four independent rooms in a two-by-two layout: Work and Idle
+  on the top row, Meeting room and Superwork on the bottom row. Narrow screens
+  follow the same reading order in a single column.
+- Meeting room is no longer nested inside Work. Superwork no longer spans the
+  full office height; its reactor is smaller and sits in the corner, keeping
+  the room compact when empty or occupied by one or two coworkers.
+- Meeting room and Superwork have plain text headings without emoji or icons.
+  The Work counter includes only coworkers at its desks, not meeting attendees.
+- Refreshed all README screenshots for this version using fictional sessions,
+  projects, messages and usage data, with Office still shown first.
+
 ## [0.9.3] - 2026-10-12
 
 ### Changed

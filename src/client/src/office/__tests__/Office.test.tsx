@@ -64,6 +64,25 @@ test("a coworker with a question sits in the meeting room and requests input imm
   expect(meeting).toContain('data-session-id="question" data-office-state="waiting"');
 });
 
+test("office rooms are independent peers in work, idle, meeting, superwork order with plain headings", () => {
+  const html = renderToStaticMarkup(<Office board={board([])} onSelect={() => {}} />);
+  let depth = 0;
+  const rooms: Array<{ name: string; depth: number }> = [];
+  for (const match of html.matchAll(/<section\b[^>]*>|<\/section>/g)) {
+    if (match[0] === "</section>") { depth--; continue; }
+    const name = match[0].match(/aria-label="([^"]+)"/)?.[1];
+    if (name && ["Work zone", "Idle zone", "Meeting room", "Superwork zone"].includes(name)) rooms.push({ name, depth });
+    depth++;
+  }
+  expect(rooms).toEqual([
+    { name: "Work zone", depth: 1 }, { name: "Idle zone", depth: 1 },
+    { name: "Meeting room", depth: 1 }, { name: "Superwork zone", depth: 1 },
+  ]);
+  expect(html).toContain("<h3>Meeting room</h3>");
+  expect(html).toContain("<h3>Superwork</h3>");
+  expect(html).not.toContain("⚡ Superwork");
+});
+
 test("a coworker keeps their color when their state and board position change", () => {
   const render = (cards: CardPayload[]) => renderToStaticMarkup(<Office board={board(cards)} onSelect={() => {}} />);
   const before = render([card("same"), card("other")]);
