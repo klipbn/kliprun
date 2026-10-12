@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Building2 } from "lucide-react";
 import type { CardPayload, ColumnKey } from "@shared/types";
 import type { TrackedCard } from "@shared/readTracker";
 import { sessionCards } from "@shared/readTracker";
@@ -11,6 +11,11 @@ import { StatusBar } from "./components/StatusBar";
 import { formatRelativeTimeVerbose } from "@shared/format";
 
 const Statistics = lazy(() => import("./statistics/Statistics"));
+const Office = lazy(() => import("./office/Office"));
+
+function currentPage() {
+  return window.location.pathname === "/stats" ? "stats" : window.location.pathname === "/office" ? "office" : "board";
+}
 
 function ConnectionIndicator(state: "connecting" | "live" | "polling", error: string | null) {
   let dot = "bg-warning animate-pulse";
@@ -38,7 +43,8 @@ export default function App() {
   const now = useNow();
   const { isRead, counts, markRead } = useReadTracker(board);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showStatistics, setShowStatistics] = useState(() => window.location.pathname === "/stats");
+  const [page, setPage] = useState(currentPage);
+  const showStatistics = page === "stats";
   const statisticsSearch = useRef(showStatistics ? window.location.search : "");
   const activeSessionIds = useMemo(() => new Set(board ? sessionCards([
     ...board.columns.attention.cards,
@@ -47,18 +53,18 @@ export default function App() {
   ]).map((card) => card.session_id) : []), [board]);
 
   useEffect(() => {
-    const navigate = () => setShowStatistics(window.location.pathname === "/stats");
+    const navigate = () => setPage(currentPage());
     window.addEventListener("popstate", navigate);
     return () => window.removeEventListener("popstate", navigate);
   }, []);
   const openStatistics = () => {
     window.history.pushState(null, "", `/stats${statisticsSearch.current}`);
-    setShowStatistics(true);
+    setPage("stats");
   };
   const backToBoard = useCallback(() => {
-    statisticsSearch.current = window.location.search;
+    if (window.location.pathname === "/stats") statisticsSearch.current = window.location.search;
     window.history.pushState(null, "", "/");
-    setShowStatistics(false);
+    setPage("board");
   }, []);
   const rememberStatisticsSearch = useCallback((search: string) => {
     statisticsSearch.current = search;
@@ -88,7 +94,7 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-background text-text-primary">
-      <header className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-border bg-surface">
+      <header className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-border bg-surface">
         <div className="flex items-center gap-2">
           <img src="/kliprun-icon.png" alt="" className="w-6 h-6" />
           <h1 className="font-semibold text-lg">KlipRun</h1>
@@ -111,6 +117,15 @@ export default function App() {
           <BarChart3 className="w-3.5 h-3.5" />
           Statistics
         </button>
+        <button type="button" onClick={() => {
+          if (page === "office") return backToBoard();
+          if (showStatistics) statisticsSearch.current = window.location.search;
+          window.history.pushState(null, "", "/office");
+          setPage("office");
+        }} aria-pressed={page === "office"} data-testid="office-button"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors ${page === "office" ? "border-accent/40 bg-accent/10 text-accent" : "border-border text-text-secondary hover:text-accent hover:border-accent/40"}`}>
+          <Building2 className="w-3.5 h-3.5" />Office
+        </button>
       </header>
 
       {showStatistics && (
@@ -119,7 +134,14 @@ export default function App() {
         </Suspense>
       )}
 
-      <main className="flex-1 min-h-0 flex" style={showStatistics ? { display: "none" } : undefined}>
+      {page === "office" && <main className="office-view flex-1 min-h-0 flex">
+        <Suspense fallback={<div className="flex-1 flex items-center justify-center text-text-secondary">Loading office…</div>}>
+          <Office board={board} now={now} onSelect={select} onBack={backToBoard} />
+        </Suspense>
+        {selectedId && <DetailsPanel sessionId={selectedId} onClose={() => setSelectedId(null)} />}
+      </main>}
+
+      <main className="flex-1 min-h-0 flex" style={page !== "board" ? { display: "none" } : undefined}>
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-secondary" data-testid="loading-screen">
             <Loader2Impl />
@@ -141,7 +163,7 @@ export default function App() {
                 />
               ))}
             </div>
-            {selectedId && (
+            {page === "board" && selectedId && (
               <DetailsPanel sessionId={selectedId} onClose={() => setSelectedId(null)} />
             )}
           </>

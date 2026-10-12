@@ -5,8 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **A local, read-only Kanban board for watching OpenCode and Codex CLI sessions.**
-Live columns, context bars and usage statistics. It never calls agent APIs and
-never changes session state: both agents' databases are opened read-only.
+Live columns, context bars, usage statistics and a pixel-art agent office.
+It never calls agent APIs and never changes session state: both agents'
+databases are opened read-only.
 
 ## Preview
 
@@ -31,6 +32,10 @@ never changes session state: both agents' databases are opened read-only.
   usage and Kanban column history.
 - **Statistics** (`/stats`): date, source, agent, model and project filters,
   token breakdowns, observed Running time, activity heatmaps and task rankings.
+- **Agent Office** (`/office`): live pixel coworkers in Work, Idle and Superwork
+  zones, with session names, models and status timers. Continuous Running over
+  one hour unlocks Superwork. A token Leaderboard ranks current sessions by
+  accumulated usage, counting each subagent separately without duplication.
 - Live updates over Server-Sent Events (~100 ms) with ETag polling fallback.
 
 ## Quick start
@@ -107,7 +112,11 @@ the local usage index stores no prompts or tool text.
 
 `GET /api/health` · `GET /api/board` (ETag/304) · `GET /api/stream` (SSE) ·
 `GET /api/session/:id` · `GET /api/stats` · `GET /api/stats/sessions` ·
-`GET /api/stats/session/:id`
+`GET /api/stats/session/:id` · `GET /api/stats/office-usage?session=:id`
+
+Office usage accepts up to 50 repeated `session` parameters per request. It
+reads all-history totals from the local Statistics index and marks partial
+data; it does not substitute context-window tokens for accumulated usage.
 
 ## Safety and privacy
 

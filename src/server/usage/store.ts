@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import type { UsageAttribution, UsageEvent, UsageImportStatus, UsageInterval, UsageObservation, UsageSession } from "@shared/usage";
+import type { OfficeUsagePayload, UsageAttribution, UsageEvent, UsageImportStatus, UsageInterval, UsageObservation, UsageSession } from "@shared/usage";
 import type { UsageDataset } from "./aggregate";
 import { scrub } from "../security";
 
@@ -96,6 +96,20 @@ export class UsageStore {
         }
       }
     })();
+  }
+  officeUsage(sessionIds: string[]): OfficeUsagePayload {
+    const sources = this.getCheckpoint("sources") as UsageImportStatus[] ?? [];
+    const query = this.db.query<{ tokens: number | null; incomplete: number }, [string]>(`
+      SELECT SUM(json_extract(data,'$.tokens.total')) AS tokens,
+        COALESCE(MAX(json_extract(data,'$.incomplete')),0)
+          OR COUNT(*) > COUNT(json_extract(data,'$.tokens.total')) AS incomplete
+      FROM usage_events WHERE session_id=? AND json_extract(data,'$.kind')='usage'`);
+    return { rows: sessionIds.map(session_id => {
+      const row = query.get(session_id)!;
+      const source = session_id.startsWith("codex:") ? "codex" : "opencode";
+      const status = sources.find(s => s.source === source);
+      return { session_id, tokens: row.tokens, incomplete: row.tokens === null || !!row.incomplete || !status || status.state !== "ready" || status.skipped > 0 || status.message !== null };
+    }) };
   }
   dataset(): UsageDataset {
     const rows = <T>(table: string, key: string): T[] => {

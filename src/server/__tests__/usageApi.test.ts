@@ -4,7 +4,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { StatsService, registerStatsRoutes } from "../usage/service";
-import type { StatsDashboardPayload, StatsSessionsPayload, StatsSessionPayload } from "@shared/usage";
+import type { OfficeUsagePayload, StatsDashboardPayload, StatsSessionsPayload, StatsSessionPayload } from "@shared/usage";
+import { UsageStore } from "../usage/store";
 
 const resources: Array<{ service: StatsService; home: string }> = [];
 afterEach(async () => { for (const { service, home } of resources.splice(0)) { await service.close(); rmSync(home, { recursive: true, force: true }); } });
@@ -51,4 +52,32 @@ test("a terminated worker immediately fails later requests without hanging shutd
   expect(response.status).toBe(503);
   expect(await response.json()).toEqual({ error: "Statistics temporarily unavailable" });
   await service.close();
+});
+
+test("office usage returns each requested session's own accumulated tokens exactly once", async () => {
+  const { app } = fixture();
+  const store = new UsageStore(join(resources[resources.length - 1].home, "usage.sqlite3"));
+  try {
+    for (const [id, parent, amount] of [["ses_parent", null, 120], ["ses_child", "ses_parent", 900], ["ses_foreign", null, 9999]] as const) {
+      store.upsertSession({ id, parent_id: parent, source: "opencode", title: id, directory: "/p", created_at: 1, updated_at: 1 });
+      store.upsertEvents(id, [{ id: "usage", session_id: id, at: null, kind: "usage", agent: "build", model: "p/m",
+        tokens: { total: amount, input: amount, output: 0, reasoning: 0, cache_read: 0, cache_write: 0, other: 0 }, cost: null, incomplete: false }]);
+    }
+    store.upsertEvents("ses_parent", [{ id: "second-call", session_id: "ses_parent", at: 2, kind: "usage", agent: "build", model: "p/m",
+      tokens: { total: 80, input: 80, output: 0, reasoning: 0, cache_read: 0, cache_write: 0, other: 0 }, cost: null, incomplete: false }]);
+    const response = await app.request("/api/stats/office-usage?session=ses_parent&session=ses_child&session=ses_parent&session=ses_missing");
+    expect(response.status).toBe(200);
+    const payload = await response.json() as OfficeUsagePayload;
+    expect(payload.rows.map(row => [row.session_id, row.tokens])).toEqual([
+      ["ses_parent", 200], ["ses_child", 900], ["ses_missing", null],
+    ]);
+    expect(payload.rows.find(row => row.session_id === "ses_missing")!.incomplete).toBe(true);
+  } finally { store.close(); }
+});
+
+test("office usage rejects malformed IDs and unbounded batches", async () => {
+  const { app } = fixture();
+  for (const query of ["", "session=bad", Array.from({ length: 51 }, (_, i) => `session=ses_${i}`).join("&")]) {
+    expect((await app.request(`/api/stats/office-usage?${query}`)).status).toBe(400);
+  }
 });

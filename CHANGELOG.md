@@ -4,6 +4,42 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-10-12
+
+### Added
+- **KlipRun Agent Office**, opened next to Statistics or at `/office`: a shared
+  pixel-art room with colorful coworkers representing live sessions and active
+  subagents. Working agents type at a communal desk, waiting agents raise a hand,
+  and idle agents rest on a couch. Errors and unknown statuses stay distinct.
+- Work, Idle and Superwork zones. Agents enter Superwork automatically after
+  more than one hour of continuous Running, with extra monitors, glow and faster
+  typing animations. Empty zones retain their furniture.
+- Two-line labels above each coworker show the session title, current status and
+  elapsed working, idle or waiting time. Timers update every second; model names
+  appear below coworkers, with explicit fallbacks for missing metadata.
+- A pixel-art token Leaderboard lists current session titles, models and
+  accumulated usage from the Statistics index, refreshed every 30 seconds.
+  Sessions and subagents contribute their own usage once; context-window size
+  is not used as a consumption total. Missing and partial data remain explicit.
+- Bounded `GET /api/stats/office-usage` batches of up to 50 session IDs, handled
+  by the statistics worker with indexed per-session queries.
+
+### Changed
+- Office uses English interface labels, a compact layout and windows instead
+  of decorative slogans. Session names retain their original language.
+- Coworkers and Leaderboard entries open the existing session details panel.
+  Board, Statistics and Office support browser back/forward navigation while
+  preserving Statistics filters.
+- Office adapts to narrow screens, placing Leaderboard above the room and
+  displaying details full-width. Animations respect reduced-motion settings.
+- Standard tests now include Office rendering, zone thresholds, model labels,
+  timers, stable colors and token-ranking regressions, plus batch API checks.
+
+### Fixed
+- Codex rollout and Hermes directory changes are also detected through file
+  metadata in the existing watcher loop, recovering native notifications missed
+  immediately after watcher registration.
+
 ## [0.8.4] - 2026-10-12
 
 ### Fixed

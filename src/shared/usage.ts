@@ -111,6 +111,9 @@ export interface StatsDashboardPayload {
   generated_at: number;
 }
 export interface StatsSessionsPayload { rows: StatsSessionRow[]; total: number; page: number; limit: number }
+export interface OfficeUsagePayload {
+  rows: Array<{ session_id: string; tokens: number | null; incomplete: boolean }>;
+}
 export interface StatsSessionPayload {
   session: StatsSessionRow | null;
   participants: StatsSessionRow[];

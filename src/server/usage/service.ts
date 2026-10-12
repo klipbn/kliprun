@@ -52,7 +52,7 @@ export class StatsService {
     if (this.closed || this.failure) return;
     void this.ready.then(() => { if (!this.closed && !this.failure) this.worker.postMessage({ op: "observe", data: observation }); }).catch(() => {});
   }
-  async query(op: "dashboard" | "sessions" | "detail", filters: StatsFilters, extra: Record<string, unknown> = {}): Promise<unknown> {
+  async query(op: "dashboard" | "sessions" | "detail" | "office", filters: StatsFilters | null, extra: Record<string, unknown> = {}): Promise<unknown> {
     await this.ready;
     if (this.closed) throw new Error("Statistics service stopped");
     return this.send(op, { filters, ...extra });
@@ -68,6 +68,17 @@ export class StatsService {
 }
 
 export function registerStatsRoutes(app: Hono, service: StatsService): void {
+  app.get("/api/stats/office-usage", async c => {
+    const requested = new URL(c.req.url).searchParams.getAll("session");
+    if (!requested.length || requested.length > 50 || requested.some(id =>
+      !/^ses_[a-zA-Z0-9_-]+$/.test(id) && !/^codex:[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id))) {
+      return c.json({ error: "invalid office sessions" }, 400);
+    }
+    try {
+      c.header("Cache-Control", "no-store");
+      return c.json(await service.query("office", null, { sessionIds: [...new Set(requested)] }));
+    } catch { return c.json({ error: "Statistics temporarily unavailable" }, 503); }
+  });
   app.get("/api/stats", async c => {
     let filters: StatsFilters;
     try { filters = parseStatsFilters(new URL(c.req.url)); } catch { return c.json({ error: "invalid statistics filters" }, 400); }
