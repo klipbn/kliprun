@@ -3,6 +3,7 @@ import { BarChart3, Building2 } from "lucide-react";
 import type { CardPayload, ColumnKey } from "@shared/types";
 import type { TrackedCard } from "@shared/readTracker";
 import { sessionCards } from "@shared/readTracker";
+import { linkedSessionId } from "@shared/sessionLink";
 import { useBoard, useNow } from "./hooks/useBoard";
 import { useReadTracker } from "./hooks/useReadTracker";
 import { BoardColumn } from "./components/BoardColumn";
@@ -43,6 +44,7 @@ export default function App() {
   const now = useNow();
   const { isRead, counts, markRead } = useReadTracker(board);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [linkedId, setLinkedId] = useState(() => linkedSessionId(window.location.search));
   const [page, setPage] = useState(currentPage);
   const showStatistics = page === "stats";
   const statisticsSearch = useRef(showStatistics ? window.location.search : "");
@@ -53,10 +55,20 @@ export default function App() {
   ]).map((card) => card.session_id) : []), [board]);
 
   useEffect(() => {
-    const navigate = () => setPage(currentPage());
+    const navigate = () => {
+      setPage(currentPage());
+      setLinkedId(linkedSessionId(window.location.search));
+    };
     window.addEventListener("popstate", navigate);
     return () => window.removeEventListener("popstate", navigate);
   }, []);
+  useEffect(() => {
+    if (!board || !linkedId) return;
+    const card = findCard(board, linkedId);
+    if (card) markRead(card);
+    setSelectedId(linkedId);
+    setLinkedId(null);
+  }, [board, linkedId, markRead]);
   const openStatistics = () => {
     window.history.pushState(null, "", `/stats${statisticsSearch.current}`);
     setPage("stats");

@@ -245,7 +245,7 @@ export function DetailsPanel({ sessionId, onClose }: Props) {
 
   return (
     <aside
-      className="w-[420px] shrink-0 border-l border-border bg-surface/50 flex flex-col min-h-0"
+      className="fixed inset-0 z-50 w-full md:static md:z-auto md:w-[420px] shrink-0 border-l border-border bg-surface md:bg-surface/50 flex flex-col min-h-0"
       data-testid="details-panel"
     >
       <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border">
