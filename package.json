@@ -1,6 +1,6 @@
 {
   "name": "kliprun",
-  "version": "0.9.5",
+  "version": "0.10.0",
   "description": "A local, read-only Kanban board for observing OpenCode and Codex CLI sessions",
   "type": "module",
   "module": "src/server/index.ts",
@@ -10,6 +10,9 @@
     "start": "bun run src/server/index.ts",
     "test": "bun test src/server src/shared src/client/src/statistics/__tests__ src/client/src/office/__tests__",
     "typecheck": "tsc -b",
+    "macos:build": "bash apps/macos/build.sh",
+    "macos:test": "swift test --package-path apps/macos --disable-xctest",
+    "macos:test:drag": "bash apps/macos/test-window-drag.sh",
     "build": "cd src/client && bun install && bun run build"
   },
   "dependencies": {

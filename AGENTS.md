@@ -116,6 +116,12 @@ bun:sqlite (read-only) → Engine (classifier) → history → /api/board → Bo
 - `src/client/src/office/` — pixel-art Office. Read `placement.ts` before
   changing seating; `Office.tsx` owns room capacity, `Leaderboard.tsx` loads
   usage, and `office.css` / `meeting-room.svg` define the room presentation.
+- `apps/macos/` — optional AppKit/SwiftUI notification companion. When changing
+  desktop notifications, read `apps/macos/README.md`. It reads only the loopback
+  board API; agent storage and classification remain server-owned. Keep
+  notification windows nonactivating, preferences app-owned, and completion
+  tied to confirmed `Finished` plus `finished_at`. Verify dragging by dispatching
+  mouse-down/drag/up events and checking movement; hit testing alone is insufficient.
 
 ## Key contracts
 

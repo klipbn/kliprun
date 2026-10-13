@@ -25,6 +25,10 @@ databases are opened read-only.
 
 ![KlipRun usage statistics](docs/statistics.png)
 
+**Desktop notifications** — optional macOS companion
+
+![Fictional KlipRun coworker asking for an answer in a desktop notification](docs/notifications.png)
+
 ## Features
 
 - Three columns: **Needs attention**, **Running**, **IDLE** — only sessions
@@ -52,6 +56,9 @@ databases are opened read-only.
   Unreviewed Idle coworkers raise a hand. Opening details in Office or Kanban
   clears the shared read marker; a new completion raises the hand again.
 - Live updates over Server-Sent Events (~100 ms) with ETag polling fallback.
+- Optional **macOS desktop notifications**: an animated pixel coworker above
+  other windows announces a ready response or asks for your input, with the
+  session title and a link to its details. Runs independently of browser tabs.
 
 ## Quick start
 
@@ -82,6 +89,24 @@ bun run dev:client     # Vite dev server on :5173, proxies /api → :8792
 bun run test           # tests
 bunx tsc -b            # typecheck
 ```
+
+## Desktop notifications (macOS)
+
+Requires Swift 6+ Command Line Tools and macOS 13+. Keep the KlipRun server
+running, then build and open the optional menu bar companion:
+
+```bash
+bun run macos:build
+open "apps/macos/dist/KlipRun Notifications.app"
+```
+
+Use its menu to preview a notification, choose its display duration (including
+until dismissed), pause/resume or quit. Drag a bubble by its upper heading;
+position and duration are remembered. Bubbles are silent, queued, and initially
+appear at the top right without taking keyboard focus.
+Only confirmed ready responses and input requests trigger notifications;
+unknown or merely inactive status does not mean completion. Existing sessions
+are silent on startup. See [build, behavior and verification notes](apps/macos/README.md).
 
 ## How cards are classified
 

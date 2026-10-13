@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-10-13
+
+### Added
+- Optional native macOS menu bar companion with an animated Office-style
+  coworker and a session-title bubble above desktop windows. It reads the
+  local board API while the browser is closed and announces confirmed ready
+  responses, questions and permission requests without inferring task success.
+- Drag notifications by their upper heading; the position persists across
+  notifications and app restarts and recovers when a display disappears.
+- Persistent display-duration settings: presets, custom seconds and
+  **until dismissed**, plus pause/resume, fictional preview and position reset.
+- Silent startup/reconnection, bounded deduplicated notification queue,
+  Reduce Motion support and direct links to session details with read marking.
+- Local `.app` build and Swift regression checks, including mouse event
+  dispatch that verifies actual window movement and drag lifecycle.
+
+### Fixed
+- Session details now fill narrow screens instead of overflowing their
+  fixed desktop width; desktop details remain a side panel.
+
 ## [0.9.5] - 2026-10-12
 
 ### Added
